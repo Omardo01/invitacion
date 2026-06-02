@@ -1,58 +1,58 @@
 "use client";
 
 import Link from "next/link";
-import { motion, useScroll, useTransform } from "motion/react";
+import { motion, AnimatePresence, useScroll, useTransform } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { wedding } from "@/lib/wedding";
 import { Customizer, type Palette, type FontChoice } from "@/components/customizer";
 
 const palettes: Palette[] = [
   {
-    id: "tabaco",
-    name: "Tabaco",
-    swatch: ["#f4ecd8", "#7c1d1d", "#3a2a1e", "#ebe0c4"],
+    id: "lila-plata",
+    name: "Lila & Plata",
+    swatch: ["#f7f5fb", "#9b7ec4", "#3a3050", "#ece8f4"],
     tokens: {
-      "--c-bg": "#f4ecd8",
-      "--c-paper-2": "#ebe0c4",
-      "--c-paper-3": "#faf3e0",
-      "--c-fg": "#3a2a1e",
-      "--c-accent": "#7c1d1d",
+      "--c-bg": "#f7f5fb",
+      "--c-paper-2": "#ece8f4",
+      "--c-paper-3": "#fdfcff",
+      "--c-fg": "#3a3050",
+      "--c-accent": "#9b7ec4",
     } as Record<string, string>,
   },
   {
-    id: "sepia",
-    name: "Sepia",
-    swatch: ["#efe2c8", "#8c4a1d", "#2f1e10", "#e0d0b0"],
+    id: "plata",
+    name: "Plata",
+    swatch: ["#f4f4f6", "#8c8ca0", "#2e2e36", "#e6e6ea"],
     tokens: {
-      "--c-bg": "#efe2c8",
-      "--c-paper-2": "#e0d0b0",
-      "--c-paper-3": "#f5ead0",
-      "--c-fg": "#2f1e10",
-      "--c-accent": "#8c4a1d",
+      "--c-bg": "#f4f4f6",
+      "--c-paper-2": "#e6e6ea",
+      "--c-paper-3": "#fbfbfc",
+      "--c-fg": "#2e2e36",
+      "--c-accent": "#8c8ca0",
     } as Record<string, string>,
   },
   {
-    id: "lino",
-    name: "Lino & salvia",
-    swatch: ["#f1ece1", "#5b6f4a", "#2e2a22", "#e3dbc8"],
+    id: "lavanda",
+    name: "Lavanda",
+    swatch: ["#f3f0fa", "#b794d4", "#352b4d", "#e7e0f3"],
     tokens: {
-      "--c-bg": "#f1ece1",
-      "--c-paper-2": "#e3dbc8",
-      "--c-paper-3": "#f8f3e8",
-      "--c-fg": "#2e2a22",
-      "--c-accent": "#5b6f4a",
+      "--c-bg": "#f3f0fa",
+      "--c-paper-2": "#e7e0f3",
+      "--c-paper-3": "#faf8ff",
+      "--c-fg": "#352b4d",
+      "--c-accent": "#b794d4",
     } as Record<string, string>,
   },
   {
-    id: "periodico",
-    name: "Periódico",
-    swatch: ["#f5f1ea", "#c61f1f", "#0e0e0e", "#e5dfd2"],
+    id: "perla-lila",
+    name: "Perla & Lila",
+    swatch: ["#fdfcff", "#8a5fb0", "#2e2440", "#f0ecf6"],
     tokens: {
-      "--c-bg": "#f5f1ea",
-      "--c-paper-2": "#e5dfd2",
-      "--c-paper-3": "#fbf8f1",
-      "--c-fg": "#0e0e0e",
-      "--c-accent": "#c61f1f",
+      "--c-bg": "#fdfcff",
+      "--c-paper-2": "#f0ecf6",
+      "--c-paper-3": "#ffffff",
+      "--c-fg": "#2e2440",
+      "--c-accent": "#8a5fb0",
     } as Record<string, string>,
   },
 ];
@@ -136,6 +136,14 @@ export default function VintageEditorial() {
   const yHero = useTransform(scrollYProgress, [0, 1], [0, -120]);
   const opacityHero = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
 
+  const [opening, setOpening] = useState(false);
+  const [opened, setOpened] = useState(false);
+  const openEnvelope = () => {
+    if (opening) return;
+    setOpening(true);
+    setTimeout(() => setOpened(true), 1300);
+  };
+
   return (
     <Customizer themeId="opcion-1" palettes={palettes} fonts={fonts} tone="light">
       {({ styleVars }) => (
@@ -160,6 +168,98 @@ export default function VintageEditorial() {
               background: radial-gradient(ellipse at center, color-mix(in srgb, var(--c-accent) 15%, transparent) 0%, transparent 70%);
             }
           `}</style>
+
+          {/* ── INTRO DE SOBRE (pantalla completa) ── */}
+          <AnimatePresence>
+            {!opened && (
+              <motion.div
+                key="envelope-intro"
+                onClick={openEnvelope}
+                role="button"
+                aria-label="Abrir invitación"
+                initial={false}
+                animate={{ opacity: opening ? 0 : 1 }}
+                transition={{ duration: 0.55, delay: opening ? 0.95 : 0, ease: "easeInOut" }}
+                className="fixed inset-0 z-[70] overflow-hidden cursor-pointer select-none"
+                style={{ perspective: 1600, backgroundColor: "var(--c-paper-2)" }}
+              >
+                {/* grano de papel del interior */}
+                <div className="absolute inset-0 paper-grain-1 opacity-60 pointer-events-none" />
+
+                {/* Carta con los nombres */}
+                <motion.div
+                  initial={{ y: "12%", opacity: 0 }}
+                  animate={{ y: opening ? "0%" : "12%", opacity: opening ? 1 : 0 }}
+                  transition={{ delay: opening ? 0.55 : 0, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                  className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[82%] max-w-sm rounded-sm px-8 py-10 text-center"
+                  style={{ backgroundColor: "var(--c-paper-3)", boxShadow: "0 24px 60px rgba(0,0,0,0.2)", zIndex: 15 }}
+                >
+                  <p className="text-[10px] tracking-[0.4em] uppercase" style={{ color: "var(--c-accent)", fontFamily: "var(--c-mono)" }}>
+                    Nos casamos
+                  </p>
+                  <p className="text-4xl md:text-5xl italic leading-tight mt-2" style={{ fontFamily: "var(--c-display)" }}>
+                    {wedding.groom} &amp; {wedding.bride}
+                  </p>
+                  <p className="text-xs tracking-[0.25em] uppercase mt-3" style={{ color: "color-mix(in srgb, var(--c-fg) 55%, transparent)", fontFamily: "var(--c-mono)" }}>
+                    {wedding.dateShort}
+                  </p>
+                </motion.div>
+
+                {/* Bolsillo frontal */}
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{ zIndex: 20, backgroundColor: "var(--c-accent)", clipPath: "polygon(0 100%, 0 36%, 50% 76%, 100% 36%, 100% 100%)" }}
+                />
+
+                {/* Solapa superior que se abre */}
+                <motion.div
+                  initial={{ rotateX: 0 }}
+                  animate={{ rotateX: opening ? -180 : 0 }}
+                  transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
+                  className="absolute top-0 left-0 right-0 pointer-events-none"
+                  style={{
+                    height: "60%",
+                    transformOrigin: "top center",
+                    transformStyle: "preserve-3d",
+                    backfaceVisibility: "hidden",
+                    zIndex: opening ? 5 : 30,
+                    backgroundColor: "color-mix(in srgb, var(--c-accent) 90%, #fff)",
+                    clipPath: "polygon(0 0, 100% 0, 50% 100%)",
+                  }}
+                />
+
+                {/* Sello de cera */}
+                <motion.div
+                  animate={{ opacity: opening ? 0 : 1, scale: opening ? 0.4 : 1, rotate: opening ? -25 : 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+                  style={{ top: "57%", zIndex: 35 }}
+                >
+                  <div
+                    className="w-20 h-20 rounded-full flex items-center justify-center"
+                    style={{
+                      backgroundColor: "color-mix(in srgb, var(--c-accent) 62%, #000)",
+                      boxShadow: "0 4px 14px rgba(0,0,0,0.4), inset 0 1px 3px rgba(255,255,255,0.25)",
+                    }}
+                  >
+                    <span className="text-xl italic" style={{ fontFamily: "var(--c-display)", color: "var(--c-bg)" }}>
+                      {wedding.groom[0]}&amp;{wedding.bride[0]}
+                    </span>
+                  </div>
+                </motion.div>
+
+                {/* Indicación */}
+                <motion.p
+                  animate={{ opacity: opening ? 0 : 1 }}
+                  transition={{ duration: 0.4 }}
+                  className="absolute bottom-10 left-1/2 -translate-x-1/2 text-xs tracking-[0.3em] uppercase pointer-events-none"
+                  style={{ color: "var(--c-bg)", fontFamily: "var(--c-mono)" }}
+                >
+                  Toca para abrir
+                </motion.p>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Nav */}
           <nav

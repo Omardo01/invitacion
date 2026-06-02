@@ -10,6 +10,10 @@ import {
   Marcellus,
   Great_Vibes,
   Bodoni_Moda,
+  Syne,
+  Fraunces,
+  Unbounded,
+  Bricolage_Grotesque,
 } from "next/font/google";
 import "./globals.css";
 
@@ -29,6 +33,10 @@ const dmSerif = DM_Serif_Display({ subsets: ["latin"], weight: "400", variable: 
 const marcellus = Marcellus({ subsets: ["latin"], weight: "400", variable: "--font-marcellus", display: "swap" });
 const greatVibes = Great_Vibes({ subsets: ["latin"], weight: "400", variable: "--font-great-vibes", display: "swap" });
 const bodoni = Bodoni_Moda({ subsets: ["latin"], variable: "--font-bodoni", display: "swap" });
+const syne = Syne({ subsets: ["latin"], variable: "--font-syne", display: "swap" });
+const fraunces = Fraunces({ subsets: ["latin"], style: ["normal", "italic"], variable: "--font-fraunces", display: "swap" });
+const unbounded = Unbounded({ subsets: ["latin"], variable: "--font-unbounded", display: "swap" });
+const bricolage = Bricolage_Grotesque({ subsets: ["latin"], variable: "--font-bricolage", display: "swap" });
 
 const fontVars = [
   playfair.variable,
@@ -41,6 +49,10 @@ const fontVars = [
   marcellus.variable,
   greatVibes.variable,
   bodoni.variable,
+  syne.variable,
+  fraunces.variable,
+  unbounded.variable,
+  bricolage.variable,
 ].join(" ");
 
 export const metadata: Metadata = {
