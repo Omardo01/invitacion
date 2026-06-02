@@ -369,6 +369,71 @@ const options = [
     preview: "G | Z",
     customizable: false,
   },
+  {
+    href: "/opcion-29",
+    number: "29",
+    name: "Plata Líquida & Cristal",
+    tagline: "Efecto vidrio esmerilado · partículas lila/plata · orbe 3D tilt · destello metálico",
+    bg: "bg-[#fafafd]",
+    fg: "text-[#2d283c]",
+    accent: "border-[#cbd5e1]",
+    chip: "bg-[#7c3aed] text-white",
+    previewFont: "var(--font-fraunces)",
+    preview: "G & Z",
+    customizable: false,
+  },
+  {
+    href: "/opcion-30",
+    number: "30",
+    name: "Líneas Estelares",
+    tagline: "Constelación minimalista · meteoros · partículas titilantes · timeline vertical",
+    bg: "bg-white",
+    fg: "text-[#1c1929]",
+    accent: "border-[#cbd5e1]",
+    chip: "bg-[#1c1929] text-white",
+    previewFont: "var(--font-marcellus)",
+    preview: "✦",
+    customizable: false,
+  },
+  {
+    href: "/opcion-31",
+    number: "31",
+    name: "Origami & Pliegues 3D",
+    tagline: "Diseño plegable interactivo · transiciones 3D flip · minimalismo blanco y plata",
+    bg: "bg-[#f5f5f8]",
+    fg: "text-[#231f32]",
+    accent: "border-purple-200",
+    chip: "bg-[#6b21a8] text-white",
+    previewFont: "var(--font-bodoni)",
+    preview: "✉",
+    customizable: false,
+  },
+  {
+    href: "/opcion-32",
+    number: "32",
+    name: "Acuarela & Hojas de Plata",
+    tagline: "Acuarela lila difusa · hojas de plata metalizadas · tipografía caligráfica",
+    bg: "bg-[#fafafd]",
+    fg: "text-[#2d263b]",
+    accent: "border-[#e2e8f0]",
+    chip: "bg-[#8b5cf6] text-white",
+    previewFont: "var(--font-script)",
+    preview: "G & Z",
+    customizable: false,
+  },
+  {
+    href: "/opcion-33",
+    number: "33",
+    name: "La Definitiva",
+    tagline: "Combinación: pétalos en toda la página · fecha gigante · itinerario con línea que avanza al scroll · textura · estructura completa",
+    bg: "bg-[#faf8fd]",
+    fg: "text-[#352c4e]",
+    accent: "border-[#b89ad6]",
+    chip: "bg-[#8a6cb8] text-white",
+    previewFont: "var(--font-great-vibes)",
+    preview: "G & Z",
+    customizable: false,
+  },
 ];
 
 export default function Home() {
@@ -387,7 +452,7 @@ export default function Home() {
           className="text-4xl md:text-6xl tracking-tight leading-[0.95]"
           style={{ fontFamily: "var(--font-display)" }}
         >
-          Veinticuatro propuestas para la invitación de{" "}
+          Treinta y dos propuestas para la invitación de{" "}
           <em
             className="not-italic"
             style={{ fontFamily: "var(--font-script)", fontSize: "1.3em" }}

@@ -88,8 +88,9 @@ export function Blossom({
       style={{ transformBox: "view-box", transformOrigin: `${cx}px ${cy}px` }}
     >
       {[0, 60, 120, 180, 240, 300].map((a) => {
-        const x = cx + r * Math.cos((a * Math.PI) / 180);
-        const y = cy + r * Math.sin((a * Math.PI) / 180);
+        // redondeado para evitar mismatch de hidratación por precisión de float
+        const x = Math.round((cx + r * Math.cos((a * Math.PI) / 180)) * 1000) / 1000;
+        const y = Math.round((cy + r * Math.sin((a * Math.PI) / 180)) * 1000) / 1000;
         return <circle key={a} cx={x} cy={y} r={petalR} fill={color} opacity={0.85} />;
       })}
       <circle cx={cx} cy={cy} r={petalR * 0.9} fill={center} />

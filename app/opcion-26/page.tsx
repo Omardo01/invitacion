@@ -27,10 +27,9 @@ function LilacRule({ className = "" }: { className?: string }) {
     <div className={`flex items-center justify-center gap-2 ${className}`}>
       <span className="h-px w-14" style={{ background: `linear-gradient(to right, transparent, ${C.lila})` }} />
       <motion.svg width="22" height="16" viewBox="0 0 22 16"
-        animate={{ rotate: [0, 8, -8, 0] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}>
-        <ellipse cx="11" cy="6" rx="3.5" ry="6" fill={C.lila} opacity="0.9" />
-        <ellipse cx="6" cy="9" rx="3" ry="5" fill={C.lilaDeep} opacity="0.7" transform="rotate(-30 6 9)" />
-        <ellipse cx="16" cy="9" rx="3" ry="5" fill={C.lilaDeep} opacity="0.7" transform="rotate(30 16 9)" />
+        animate={{ rotate: [0, 6, -6, 0] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}>
+        <ellipse cx="11" cy="8" rx="5" ry="6.5" fill={C.lila} opacity="0.85" />
+        <line x1="11" y1="2" x2="11" y2="14" stroke={C.lilaDeep} strokeWidth="0.6" opacity="0.5" />
       </motion.svg>
       <span className="h-px w-14" style={{ background: `linear-gradient(to left, transparent, ${C.lila})` }} />
     </div>
@@ -70,19 +69,19 @@ export default function Opcion26() {
         {/* lavanda en esquinas con leve balanceo */}
         <motion.div className="absolute -top-6 -left-6 w-40 md:w-56 z-0"
           initial={{ opacity: 0 }} animate={{ opacity: 1, rotate: [0, 2, 0] }} transition={{ opacity: { duration: 1 }, rotate: { duration: 7, repeat: Infinity, ease: "easeInOut" } }}>
-          <LavenderSprig className="w-full" purples={LAV} />
+          <EucalyptusSprig className="w-full" greens={LAV} />
         </motion.div>
         <motion.div className="absolute -top-6 -right-6 w-40 md:w-56 z-0"
           initial={{ opacity: 0 }} animate={{ opacity: 1, rotate: [0, -2, 0] }} transition={{ opacity: { duration: 1 }, rotate: { duration: 7, repeat: Infinity, ease: "easeInOut" } }}>
-          <LavenderSprig className="w-full" purples={LAV} mirror />
+          <EucalyptusSprig className="w-full" greens={LAV} mirror />
         </motion.div>
         <motion.div className="absolute -bottom-8 -left-6 w-36 md:w-48 z-0 rotate-180"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1, delay: 0.3 }}>
-          <LavenderSprig className="w-full" purples={LAV} mirror />
+          <EucalyptusSprig className="w-full" greens={LAV} mirror />
         </motion.div>
         <motion.div className="absolute -bottom-8 -right-6 w-36 md:w-48 z-0 rotate-180"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1, delay: 0.3 }}>
-          <LavenderSprig className="w-full" purples={LAV} />
+          <EucalyptusSprig className="w-full" greens={LAV} />
         </motion.div>
 
         <div className="relative z-10 flex flex-col items-center">
@@ -151,7 +150,7 @@ export default function Opcion26() {
               <motion.div whileHover={{ y: -5 }} transition={{ duration: 0.3 }}
                 className="relative rounded-3xl p-8 text-center h-full overflow-hidden" style={{ backgroundColor: C.paper, border: `1px solid ${C.line}` }}>
                 <div className="absolute -top-4 -right-4 w-20 opacity-80 pointer-events-none">
-                  <LavenderSprig className="w-full" purples={LAV} mirror />
+                  <EucalyptusSprig className="w-full" greens={LAV} mirror />
                 </div>
                 <div className="relative">
                   <p className="text-[10px] uppercase tracking-[0.3em] mb-3" style={{ color: C.faint }}>{ev.title}</p>
@@ -202,8 +201,8 @@ export default function Opcion26() {
 
       {/* RSVP */}
       <section className="py-24 px-6 border-t text-center relative overflow-hidden" style={{ borderColor: C.line, backgroundColor: C.paper }}>
-        <div className="absolute -bottom-8 -left-6 w-36 opacity-70 rotate-180 pointer-events-none"><LavenderSprig className="w-full" purples={LAV} mirror /></div>
-        <div className="absolute -bottom-8 -right-6 w-36 opacity-70 rotate-180 pointer-events-none"><LavenderSprig className="w-full" purples={LAV} /></div>
+        <div className="absolute -bottom-8 -left-6 w-36 opacity-70 rotate-180 pointer-events-none"><EucalyptusSprig className="w-full" greens={LAV} mirror /></div>
+        <div className="absolute -bottom-8 -right-6 w-36 opacity-70 rotate-180 pointer-events-none"><EucalyptusSprig className="w-full" greens={LAV} /></div>
         <BlurFade className="max-w-md mx-auto relative">
           <LilacRule className="mb-8" />
           <h2 className="text-5xl md:text-6xl mb-6" style={{ fontFamily: "var(--font-great-vibes)", color: C.lilaDeep }}>¡Te esperamos!</h2>
