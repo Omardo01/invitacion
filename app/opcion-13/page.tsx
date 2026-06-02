@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "motion/react";
 import { useState, useEffect } from "react";
 import { wedding } from "@/lib/wedding";
@@ -69,42 +70,64 @@ export default function Opcion13() {
 
       {/* HERO */}
       <section className="min-h-screen flex flex-col items-center justify-center text-center px-6 py-28 relative overflow-hidden">
+        {/* Foto de fondo tenue, fundida con la paleta lavanda */}
+        <div className="absolute inset-0 z-0">
+          <Image
+            src="/1.jpg"
+            alt={`${wedding.groom} y ${wedding.bride}`}
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover select-none pointer-events-none"
+            style={{ opacity: 0.22 }}
+          />
+          {/* Velo de color para armonizar y mantener legibilidad */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background: `radial-gradient(ellipse at center, ${C.bg}66 0%, ${C.bg}cc 55%, ${C.bg} 100%)`,
+            }}
+          />
+        </div>
+
         {/* Sprigs decorativos */}
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 0.9, y: 0 }} transition={{ duration: 1.2 }}
-          className="absolute top-0 left-0 w-28 md:w-40"><Sprig /></motion.div>
+          className="absolute top-0 left-0 z-10 w-28 md:w-40"><Sprig /></motion.div>
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 0.9, y: 0 }} transition={{ duration: 1.2 }}
-          className="absolute top-0 right-0 w-28 md:w-40"><Sprig flip /></motion.div>
+          className="absolute top-0 right-0 z-10 w-28 md:w-40"><Sprig flip /></motion.div>
 
-        <motion.p initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-          className="text-xs uppercase tracking-[0.5em] mb-6" style={{ color: C.lavandaDeep }}>Nuestra boda</motion.p>
+        <div className="relative z-10 flex flex-col items-center">
+          <motion.p initial={{ opacity: 0, y: -12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+            className="text-xs uppercase tracking-[0.5em] mb-6" style={{ color: C.lavandaDeep }}>Nuestra boda</motion.p>
 
-        <motion.h1 initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.4, duration: 1 }}
-          className="text-7xl md:text-9xl leading-[0.9]" style={{ fontFamily: "var(--font-great-vibes)", color: C.lavandaDeep }}>
-          {wedding.groom}
-        </motion.h1>
+          <motion.h1 initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.4, duration: 1 }}
+            className="text-7xl md:text-9xl leading-[0.9]" style={{ fontFamily: "var(--font-great-vibes)", color: C.lavandaDeep }}>
+            {wedding.groom}
+          </motion.h1>
 
-        <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
-          className="text-5xl my-1" style={{ fontFamily: "var(--font-great-vibes)", color: C.lavanda }}>&amp;</motion.span>
+          <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
+            className="text-5xl my-1" style={{ fontFamily: "var(--font-great-vibes)", color: C.lavanda }}>&amp;</motion.span>
 
-        <motion.h1 initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.5, duration: 1 }}
-          className="text-7xl md:text-9xl leading-[0.9]" style={{ fontFamily: "var(--font-great-vibes)", color: C.lavandaDeep }}>
-          {wedding.bride}
-        </motion.h1>
+          <motion.h1 initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.5, duration: 1 }}
+            className="text-7xl md:text-9xl leading-[0.9]" style={{ fontFamily: "var(--font-great-vibes)", color: C.lavandaDeep }}>
+            {wedding.bride}
+          </motion.h1>
 
-        <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 0.8, duration: 0.8 }}
-          className="my-8 h-px w-40" style={{ background: `linear-gradient(to right, transparent, ${C.lavanda}, transparent)` }} />
+          <motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 0.8, duration: 0.8 }}
+            className="my-8 h-px w-40" style={{ background: `linear-gradient(to right, transparent, ${C.lavanda}, transparent)` }} />
 
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9 }} className="space-y-2">
-          <p className="text-xs uppercase tracking-[0.4em]" style={{ color: C.fgMid }}>{wedding.city}</p>
-          <p className="text-2xl tracking-wide" style={{ fontFamily: "var(--font-display)", color: C.fg }}>{wedding.dateLabel} · 2026</p>
-        </motion.div>
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9 }} className="space-y-2">
+            <p className="text-xs uppercase tracking-[0.4em]" style={{ color: C.fgMid }}>{wedding.city}</p>
+            <p className="text-2xl tracking-wide" style={{ fontFamily: "var(--font-display)", color: C.fg }}>{wedding.dateLabel} · 2026</p>
+          </motion.div>
 
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.2 }} className="mt-12">
-          <Countdown target="2026-07-25T17:00:00" />
-        </motion.div>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.2 }} className="mt-12">
+            <Countdown target="2026-07-25T17:00:00" />
+          </motion.div>
+        </div>
 
         <motion.div animate={{ y: [0, 8, 0] }} transition={{ duration: 2, repeat: Infinity }}
-          className="absolute bottom-8 text-xs uppercase tracking-widest" style={{ color: C.fgMid }}>↓</motion.div>
+          className="absolute bottom-8 z-10 text-xs uppercase tracking-widest" style={{ color: C.fgMid }}>↓</motion.div>
       </section>
 
       {/* Historia */}
