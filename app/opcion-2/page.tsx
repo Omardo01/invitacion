@@ -59,6 +59,32 @@ const palettes: Palette[] = [
       "--c-shine": "linear-gradient(135deg, #d4af6f 0%, #f5e1a8 30%, #c9a961 55%, #8a6d2c 80%, #f0d486 100%)",
     } as Record<string, string>,
   },
+  {
+    id: "lila-blanco",
+    name: "Lila & Blanco",
+    swatch: ["#ffffff", "#9b7cc7", "#c8c4d8", "#f0ecf8"],
+    tokens: {
+      "--c-bg": "#ffffff",
+      "--c-fg": "#2d2240",
+      "--c-accent": "#9b7cc7",
+      "--c-accent-2": "#e4e0f4",
+      "--c-accent-3": "#c8c4d8",
+      "--c-shine": "linear-gradient(135deg, #c4b0e0 0%, #f0ecf8 30%, #9b7cc7 55%, #b8b4cc 80%, #d4cce8 100%)",
+    } as Record<string, string>,
+  },
+  {
+    id: "plata-lila",
+    name: "Plata & Lila",
+    swatch: ["#f0eef6", "#7a6daa", "#b8b4cc", "#1e1830"],
+    tokens: {
+      "--c-bg": "#f0eef6",
+      "--c-fg": "#1e1830",
+      "--c-accent": "#7a6daa",
+      "--c-accent-2": "#f0eef6",
+      "--c-accent-3": "#b8b4cc",
+      "--c-shine": "linear-gradient(135deg, #9888c4 0%, #e4e0f0 30%, #7a6daa 55%, #a8a4bc 80%, #c4c0d8 100%)",
+    } as Record<string, string>,
+  },
 ];
 
 const fonts: FontChoice[] = [

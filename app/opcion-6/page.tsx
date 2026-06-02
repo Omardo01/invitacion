@@ -101,6 +101,40 @@ const palettes: Palette[] = [
       "--c-flap-shadow": "#160f24",
     } as Record<string, string>,
   },
+  {
+    id: "lila-blanco",
+    name: "Lila & Blanco",
+    swatch: ["#ffffff", "#9b7cc7", "#c8c4d8", "#f0ecf8"],
+    tokens: {
+      "--c-bg": "#1c1428",
+      "--c-paper": "#ffffff",
+      "--c-paper-2": "#f0ecf8",
+      "--c-paper-3": "#e8e4f4",
+      "--c-fg": "#2d2240",
+      "--c-fg-soft": "#5d4a70",
+      "--c-accent": "#9b7cc7",
+      "--c-accent-2": "#c8c4d8",
+      "--c-flap": "#f0ecf8",
+      "--c-flap-shadow": "#d0cce4",
+    } as Record<string, string>,
+  },
+  {
+    id: "plata-lila",
+    name: "Plata & Lila",
+    swatch: ["#f4f2f8", "#7a6daa", "#b8b4cc", "#1e1830"],
+    tokens: {
+      "--c-bg": "#14101e",
+      "--c-paper": "#f8f6fc",
+      "--c-paper-2": "#eae6f4",
+      "--c-paper-3": "#dddae8",
+      "--c-fg": "#1e1830",
+      "--c-fg-soft": "#4a3a60",
+      "--c-accent": "#7a6daa",
+      "--c-accent-2": "#b8b4cc",
+      "--c-flap": "#eae6f4",
+      "--c-flap-shadow": "#c8c4d8",
+    } as Record<string, string>,
+  },
 ];
 
 const fonts: FontChoice[] = [

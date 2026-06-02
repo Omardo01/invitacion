@@ -55,6 +55,30 @@ const palettes: Palette[] = [
       "--c-accent": "#c9a961",
     } as Record<string, string>,
   },
+  {
+    id: "lila-blanco",
+    name: "Lila & Blanco",
+    swatch: ["#ffffff", "#9b7cc7", "#c8c4d8", "#f0ecf8"],
+    tokens: {
+      "--c-bg": "#ffffff",
+      "--c-paper": "#faf8ff",
+      "--c-fg": "#1e1830",
+      "--c-muted": "#8a849a",
+      "--c-accent": "#9b7cc7",
+    } as Record<string, string>,
+  },
+  {
+    id: "plata-lila",
+    name: "Plata & Lila",
+    swatch: ["#f0eef6", "#7a6daa", "#b8b4cc", "#1e1830"],
+    tokens: {
+      "--c-bg": "#f0eef6",
+      "--c-paper": "#fdfcff",
+      "--c-fg": "#1e1830",
+      "--c-muted": "#7a7490",
+      "--c-accent": "#7a6daa",
+    } as Record<string, string>,
+  },
 ];
 
 const fonts: FontChoice[] = [
