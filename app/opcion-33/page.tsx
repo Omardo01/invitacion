@@ -9,6 +9,7 @@ import { BlurFade, useCountdown } from "@/components/magic";
 import { PetalRain, FloralCorner, FloralDivider, Blossom } from "@/components/floral";
 
 /* ─── La Definitiva · lila · blanco · plata · combinación de 24+11+13+9+1 ─── */
+/* deploy check 2026-06-04 — forzar redeploy en prod */
 const C = {
   bg: "#faf8fd",
   paper: "#ffffff",
