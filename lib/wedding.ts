@@ -33,7 +33,7 @@ export const wedding = {
     ellos: "Traje oscuro · corbata o moño en tonos cálidos",
   },
   story:
-    "Nuestra historia comenzó una tarde de abril, entre risas torpes y un café demasiado cargado. Hoy, casi cuatro años después, te queremos a nuestro lado para escribir el capítulo más importante.",
+    "Nos cruzamos siendo niños, sin imaginar que Dios ya tejía nuestra historia. Nos permitió crecer y recorrer caminos separados para prepararnos, y nos volvió a unir en el momento perfecto. Hoy iniciamos una nueva etapa con la certeza de que caminar juntos le da sentido a todo.",
   rsvpDeadline: "1 de Julio",
   gallery: [
     { caption: "El primer viaje", year: "2022" },

@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
 import type { Guest } from "@/lib/guests";
+import type { Attendee } from "@/lib/attendees";
 
 type Stats = {
   total: number;
@@ -55,12 +57,126 @@ function StatCard({
   );
 }
 
+function NamesModal({
+  guest,
+  initial,
+  onClose,
+  onChanged,
+}: {
+  guest: Guest;
+  initial: Attendee[];
+  onClose: () => void;
+  onChanged: () => void;
+}) {
+  const [rows, setRows] = useState<Attendee[]>(initial);
+  const [newName, setNewName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const full = rows.length >= guest.seats;
+
+  const add = async () => {
+    if (!newName.trim() || full || busy) return;
+    setBusy(true);
+    const res = await fetch("/api/attendees", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ guest_id: guest.id, name: newName.trim() }),
+    });
+    const a = await res.json();
+    setRows((r) => [...r, a]);
+    setNewName("");
+    setBusy(false);
+  };
+
+  const rename = async (id: number, name: string) => {
+    await fetch(`/api/attendees/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+  };
+
+  const remove = async (id: number) => {
+    setRows((r) => r.filter((x) => x.id !== id));
+    await fetch(`/api/attendees/${id}`, { method: "DELETE" });
+  };
+
+  const close = () => { onChanged(); onClose(); };
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={(e) => e.target === e.currentTarget && close()}
+    >
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+        <h2 className="text-lg font-semibold text-gray-900">Nombres de asistentes</h2>
+        <p className="text-sm text-gray-500 mb-1">{guest.name}</p>
+        <p className="text-xs text-gray-400 mb-5">
+          {rows.length} de {guest.seats} {guest.seats === 1 ? "lugar" : "lugares"} registrados
+        </p>
+
+        <div className="space-y-2 mb-4">
+          {rows.map((a) => (
+            <div key={a.id} className="flex items-center gap-2">
+              <input
+                defaultValue={a.name}
+                onBlur={(e) => { if (e.target.value.trim() && e.target.value.trim() !== a.name) rename(a.id, e.target.value.trim()); }}
+                className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:border-gray-400 transition-colors"
+              />
+              <button
+                onClick={() => remove(a.id)}
+                title="Quitar"
+                className="p-2 rounded-lg text-red-400 hover:bg-red-50 transition-colors text-sm"
+              >
+                🗑️
+              </button>
+            </div>
+          ))}
+          {rows.length === 0 && (
+            <p className="text-sm text-gray-400 text-center py-2">Aún no hay nombres. Agrégalos abajo.</p>
+          )}
+        </div>
+
+        {!full && (
+          <div className="flex items-center gap-2 mb-2">
+            <input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && add()}
+              placeholder={`Nombre del asistente ${rows.length + 1}`}
+              className="flex-1 px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:border-gray-400 transition-colors"
+            />
+            <button
+              onClick={add}
+              disabled={busy || !newName.trim()}
+              className="px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-700 transition-colors disabled:opacity-50"
+            >
+              + Agregar
+            </button>
+          </div>
+        )}
+        {full && (
+          <p className="text-xs text-purple-600 mb-2">Ya registraste los {guest.seats} lugares asignados.</p>
+        )}
+
+        <button
+          onClick={close}
+          className="w-full mt-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+        >
+          Listo
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const [guests, setGuests] = useState<Guest[]>([]);
+  const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editGuest, setEditGuest] = useState<Guest | null>(null);
+  const [namesGuest, setNamesGuest] = useState<Guest | null>(null);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", seats: "1", phone: "" });
   const [saving, setSaving] = useState(false);
@@ -68,12 +184,19 @@ export default function AdminPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const res = await fetch("/api/guests");
-    const data = await res.json();
-    setGuests(data.guests);
-    setStats(data.stats);
+    const [gRes, aRes] = await Promise.all([fetch("/api/guests"), fetch("/api/attendees")]);
+    const gData = await gRes.json();
+    const aData = await aRes.json();
+    setGuests(gData.guests);
+    setStats(gData.stats);
+    setAttendees(aData.attendees ?? []);
     setLoading(false);
   }, []);
+
+  const attendeesOf = useCallback(
+    (guestId: number) => attendees.filter((a) => a.guest_id === guestId),
+    [attendees]
+  );
 
   useEffect(() => {
     fetchData();
@@ -170,7 +293,7 @@ export default function AdminPage() {
     <div className="min-h-screen bg-gray-50 font-sans">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <span className="text-2xl">💍</span>
           <div>
             <h1 className="text-lg font-semibold text-gray-900">
@@ -178,6 +301,14 @@ export default function AdminPage() {
             </h1>
             <p className="text-xs text-gray-500">25 de julio 2026</p>
           </div>
+          <nav className="ml-4 flex items-center gap-1">
+            <span className="text-sm px-3 py-1.5 rounded-lg font-medium bg-gray-900 text-white">
+              Invitados
+            </span>
+            <Link href="/admin/mesas" className="text-sm px-3 py-1.5 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-colors">
+              Mesas
+            </Link>
+          </nav>
         </div>
         <div className="flex gap-2">
           <button
@@ -253,7 +384,24 @@ export default function AdminPage() {
                     <td className="px-4 py-3 text-gray-500 hidden md:table-cell">
                       {g.phone || <span className="text-gray-300">—</span>}
                     </td>
-                    <td className="px-4 py-3">{statusBadge(g.confirmed)}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        {statusBadge(g.confirmed)}
+                        {g.confirmed === 1 && (
+                          <button
+                            onClick={() => setNamesGuest(g)}
+                            title="Registrar nombres de los asistentes"
+                            className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
+                              attendeesOf(g.id).length >= g.seats
+                                ? "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100"
+                                : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
+                            }`}
+                          >
+                            👤 {attendeesOf(g.id).length}/{g.seats}
+                          </button>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-gray-400 text-xs hidden lg:table-cell">
                       {g.confirmed_at
                         ? new Date(g.confirmed_at).toLocaleDateString("es-MX", {
@@ -384,6 +532,16 @@ export default function AdminPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal de nombres de asistentes */}
+      {namesGuest && (
+        <NamesModal
+          guest={namesGuest}
+          initial={attendeesOf(namesGuest.id)}
+          onClose={() => setNamesGuest(null)}
+          onChanged={fetchData}
+        />
       )}
     </div>
   );

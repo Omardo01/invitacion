@@ -21,6 +21,21 @@ db.exec(`
     notes       TEXT    DEFAULT NULL,
     created_at  TEXT    DEFAULT (datetime('now','localtime'))
   );
+
+  CREATE TABLE IF NOT EXISTS tables (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT    NOT NULL,
+    capacity   INTEGER NOT NULL DEFAULT 12,
+    created_at TEXT    DEFAULT (datetime('now','localtime'))
+  );
+
+  CREATE TABLE IF NOT EXISTS attendees (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    guest_id   INTEGER NOT NULL REFERENCES guests(id) ON DELETE CASCADE,
+    name       TEXT    NOT NULL,
+    table_id   INTEGER REFERENCES tables(id) ON DELETE SET NULL,
+    created_at TEXT    DEFAULT (datetime('now','localtime'))
+  );
 `);
 
 export default db;

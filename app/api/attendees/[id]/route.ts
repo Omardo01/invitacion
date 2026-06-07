@@ -1,0 +1,21 @@
+import { NextResponse } from "next/server";
+import { updateAttendee, deleteAttendee } from "@/lib/attendees";
+
+export async function PUT(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const body = await req.json();
+  const attendee = updateAttendee(Number(id), body);
+  return NextResponse.json(attendee);
+}
+
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  deleteAttendee(Number(id));
+  return NextResponse.json({ ok: true });
+}

@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { getGuestBySlug } from "@/lib/guests";
-import { wedding } from "@/lib/wedding";
-import InvitationClient from "./InvitationClient";
+import Invitation33 from "@/components/invitation-33";
 
 export const dynamic = "force-dynamic";
 
@@ -15,28 +14,12 @@ export default async function InvitationPage({
   if (!guest) notFound();
 
   return (
-    <InvitationClient
-      guest={{
-        id: guest.id,
-        slug: guest.slug,
-        name: guest.name,
-        seats: guest.seats,
-        confirmed: guest.confirmed,
-        notes: guest.notes,
-      }}
-      wedding={{
-        bride: wedding.bride,
-        groom: wedding.groom,
-        dateLabel: wedding.dateLabel,
-        dateShort: wedding.dateShort,
-        city: wedding.city,
-        ceremony: wedding.ceremony,
-        reception: wedding.reception,
-        dressCode: wedding.dressCode,
-        rsvpDeadline: wedding.rsvpDeadline,
-        hashtag: wedding.hashtag,
-        story: wedding.story,
-      }}
+    <Invitation33
+      mode="live"
+      guestName={guest.name}
+      slug={guest.slug}
+      seats={guest.seats}
+      initialConfirmed={guest.confirmed}
     />
   );
 }
