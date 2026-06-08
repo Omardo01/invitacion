@@ -252,6 +252,111 @@ function Itinerary() {
   );
 }
 
+/* ─────────────────────────────────────────────
+   FloatingPhoto · fotos de la pedida de mano repartidas por la página.
+   Cada una entra con una animación distinta al hacer scroll (una sola vez) y
+   luego flota con un vaivén sutil. Son decorativas: no captan clics y van
+   detrás del contenido (cada sección anfitriona lleva `isolate` y la foto
+   `-z-10`) para acompañar la lectura sin estorbarla.
+   ───────────────────────────────────────────── */
+type FloatVariant = "left" | "right" | "leaf" | "pop" | "tilt";
+type MotionDivProps = React.ComponentProps<typeof motion.div>;
+
+type FloatVar = NonNullable<MotionDivProps["variants"]>[string];
+
+function floatAnim(variant: FloatVariant, r: number) {
+  const map = {
+    left: {
+      // se desliza entrando desde la izquierda
+      hidden: { opacity: 0, x: -120, rotate: r - 8 },
+      show: { opacity: 1, x: 0, rotate: r },
+      transition: { duration: 0.95, ease: [0.22, 1, 0.36, 1] },
+    },
+    right: {
+      // se desliza entrando desde la derecha
+      hidden: { opacity: 0, x: 120, rotate: r + 8 },
+      show: { opacity: 1, x: 0, rotate: r },
+      transition: { duration: 0.95, ease: [0.22, 1, 0.36, 1] },
+    },
+    leaf: {
+      // cae meciéndose, como una hoja al viento (recorrido corto: vive en el divisor)
+      hidden: { opacity: 0, y: -70, x: -24, rotate: r - 30 },
+      show: { opacity: 1, y: 0, x: [-24, 16, -8, 0], rotate: [r - 30, r + 12, r - 5, r] },
+      transition: { duration: 1.6, ease: "easeInOut" },
+    },
+    pop: {
+      // aparece creciendo, con rebote
+      hidden: { opacity: 0, scale: 0.4, rotate: r - 14 },
+      show: { opacity: 1, scale: 1, rotate: r },
+      transition: { type: "spring", stiffness: 150, damping: 13 },
+    },
+    tilt: {
+      // se endereza inclinándose desde abajo (recorrido corto: vive en el divisor)
+      hidden: { opacity: 0, y: 55, rotate: r + 20 },
+      show: { opacity: 1, y: 0, rotate: r },
+      transition: { duration: 0.95, ease: [0.22, 1, 0.36, 1] },
+    },
+  } satisfies Record<FloatVariant, { hidden: FloatVar; show: FloatVar; transition: MotionDivProps["transition"] }>;
+  return map[variant];
+}
+
+function FloatingPhoto({
+  src,
+  ratio = "portrait",
+  variant = "pop",
+  rest = 0,
+  delay = 0,
+  caption,
+  className = "",
+  sizeClass = "w-20 sm:w-32 lg:w-40",
+}: {
+  src: string;
+  ratio?: "portrait" | "landscape";
+  variant?: FloatVariant;
+  rest?: number; // ángulo de reposo (grados de inclinación final)
+  delay?: number;
+  caption?: string;
+  className?: string; // posición en el divisor: bottom-0 translate-y-[72%] left-*, etc.
+  sizeClass?: string;
+}) {
+  const a = floatAnim(variant, rest);
+  return (
+    // Contenedor posicionado SOBRE la unión entre secciones (montado en el borde
+    // con translate). Es un <div> normal a propósito: así Tailwind controla el
+    // transform de posición sin chocar con los transforms de la animación.
+    <div aria-hidden className={`pointer-events-none absolute z-30 select-none ${sizeClass} ${className}`}>
+      {/* observador del scroll: se queda en su sitio (el divisor, zona sin texto),
+          por eso el IntersectionObserver siempre dispara aunque la entrada arranque fuera. */}
+      <motion.div className="w-full" initial="hidden" whileInView="show" viewport={{ once: true, margin: "-40px" }}>
+        {/* entrada coreografiada (se desliza / cae / aparece) */}
+        <motion.div className="w-full" variants={{ hidden: a.hidden, show: a.show }} transition={{ ...a.transition, delay }}>
+          {/* vaivén continuo y sutil, una vez ya colocada */}
+          <motion.div
+            className="w-full"
+            animate={{ y: [0, -8, 0], rotate: [0, 1.6, 0] }}
+            transition={{ duration: 6.5, repeat: Infinity, ease: "easeInOut", delay }}
+          >
+            {/* marco tipo polaroid */}
+            <div
+              className="w-full rounded-[7px] p-1.5 pb-5"
+              style={{ backgroundColor: "#fff", border: `1px solid ${C.line}`, boxShadow: "0 22px 46px -18px rgba(120,90,170,0.6)" }}
+            >
+              <div className={`relative w-full overflow-hidden rounded-[4px] ${ratio === "portrait" ? "aspect-[3/4]" : "aspect-[4/3]"}`}>
+                <Image src={src} alt="" fill sizes="(max-width: 1024px) 160px, 220px" quality={75} className="object-cover" />
+              </div>
+              {caption && (
+                <p className="mt-1.5 text-center leading-none" style={{ fontFamily: "var(--font-great-vibes)", color: C.lilaDeep, fontSize: "0.95rem" }}>
+                  {caption}
+                </p>
+              )}
+            </div>
+          </motion.div>
+        </motion.div>
+      </motion.div>
+    </div>
+  );
+}
+
 /* ── Galería · fotos reales en /public/Fotos (orientación intercalada para balance) ── */
 const galleryPhotos: { src: string; w: number; h: number }[] = [
   { src: "/Fotos/20260419_131357.jpg", w: 3792, h: 2134 },
@@ -573,50 +678,80 @@ function RSVPModal({ seats, mode, slug, onClose, onConfirmed }: {
   );
 }
 
-/* ── Música de fondo · autoplay (arranca en el 1er gesto si el navegador lo bloquea) ──
-   Salta los primeros 5 s de silencio del archivo. */
-const AUDIO_START = 5;
+/* ── Música de fondo · al abrir, elige al azar entre dos canciones. Autoplay
+   (arranca en el 1er gesto si el navegador lo bloquea). Cada pista indica cuántos
+   segundos de silencio inicial saltar (medidos con ffmpeg silencedetect). ── */
+const TRACKS = [
+  { src: "/Misterio.mp3", start: 7.7 },
+  { src: "/Turning.mp3", start: 0.5 },
+];
 function AudioPlayer() {
   const ref = useRef<HTMLAudioElement>(null);
+  const startRef = useRef(0); // silencio inicial a saltar, según la pista elegida
   const [playing, setPlaying] = useState(false);
 
   useEffect(() => {
     const audio = ref.current;
     if (!audio) return;
+
+    // Elige la canción al azar (solo en cliente, para no romper la hidratación).
+    const track = TRACKS[Math.floor(Math.random() * TRACKS.length)];
+    startRef.current = track.start;
+    audio.src = track.src;
     audio.volume = 0.55;
+    audio.load();
 
-    const atStart = () => { if (audio.currentTime < AUDIO_START) audio.currentTime = AUDIO_START; };
+    const atStart = () => { if (audio.currentTime < startRef.current) audio.currentTime = startRef.current; };
+    audio.addEventListener("loadedmetadata", atStart);
 
-    const tryPlay = () => {
-      atStart();
-      audio.play().then(() => setPlaying(true)).catch(() => {});
+    // Arranca respetando el corte de silencio inicial.
+    const start = () => { atStart(); return audio.play(); };
+
+    let unlocked = false;
+    const removeGestureListeners = () => {
+      window.removeEventListener("pointerdown", onGesture);
+      window.removeEventListener("keydown", onGesture);
+      window.removeEventListener("touchstart", onGesture);
+      window.removeEventListener("scroll", onGesture);
     };
 
-    const onGesture = () => { if (audio.paused) tryPlay(); };
+    // Primer gesto del usuario: desbloquea el autoplay UNA sola vez y deja de
+    // escuchar. Así, si luego el usuario pausa con el botón, su decisión se
+    // respeta (antes un scroll posterior reanudaba la música solo — ese era el bug).
+    const onGesture = () => {
+      if (unlocked) return;
+      unlocked = true;
+      removeGestureListeners();
+      start().catch(() => {});
+    };
 
-    audio.addEventListener("loadedmetadata", atStart);
-    tryPlay(); // intento de autoplay (suele bloquearse con sonido)
-    window.addEventListener("pointerdown", onGesture);
-    window.addEventListener("keydown", onGesture);
-    window.addEventListener("scroll", onGesture, { passive: true });
+    // Intento de autoplay directo (suele bloquearse cuando lleva sonido).
+    start()
+      .then(() => { unlocked = true; })
+      .catch(() => {
+        // Bloqueado por el navegador: espera el primer gesto del usuario.
+        window.addEventListener("pointerdown", onGesture);
+        window.addEventListener("keydown", onGesture);
+        window.addEventListener("touchstart", onGesture, { passive: true });
+        window.addEventListener("scroll", onGesture, { passive: true });
+      });
 
     return () => {
       audio.removeEventListener("loadedmetadata", atStart);
-      window.removeEventListener("pointerdown", onGesture);
-      window.removeEventListener("keydown", onGesture);
-      window.removeEventListener("scroll", onGesture);
+      removeGestureListeners();
     };
   }, []);
 
+  // Control manual del botón. onPlay/onPause del <audio> sincronizan el estado,
+  // por eso aquí no tocamos setPlaying (evita que el ícono se desincronice).
   const toggle = () => {
     const audio = ref.current;
     if (!audio) return;
     if (audio.paused) {
-      if (audio.currentTime < AUDIO_START) audio.currentTime = AUDIO_START;
-      audio.play().then(() => setPlaying(true)).catch(() => {});
+      if (audio.currentTime < startRef.current) audio.currentTime = startRef.current;
+      audio.play().catch(() => {});
     } else {
       audio.pause();
-      setPlaying(false);
     }
   };
 
@@ -624,11 +759,10 @@ function AudioPlayer() {
     <>
       <audio
         ref={ref}
-        src="/Misterio.mp3"
         preload="auto"
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
-        onEnded={(e) => { const a = e.currentTarget; a.currentTime = AUDIO_START; a.play().catch(() => {}); }}
+        onEnded={(e) => { const a = e.currentTarget; a.currentTime = startRef.current; a.play().catch(() => {}); }}
       />
       <button
         type="button"
@@ -718,6 +852,12 @@ export default function Invitation33({
         </div>
 
         <div className="relative z-10 flex flex-col items-center">
+          {/* bendición · antes de la foto */}
+          <motion.p initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1, delay: 0.1 }}
+            className="mb-7 max-w-[18rem] text-sm sm:text-base leading-relaxed" style={{ fontFamily: "var(--font-fraunces)", fontStyle: "italic", color: C.mid }}>
+            Con la bendición de Dios y de nuestros padres
+          </motion.p>
+
           {/* foto de los novios en óvalo */}
           <motion.div
             initial={{ opacity: 0, scale: 0.9, y: -10 }}
@@ -762,7 +902,8 @@ export default function Invitation33({
       </section>
 
       {/* ░░ VERSÍCULO ░░ */}
-      <section className="py-20 px-6 border-t grain" style={{ borderColor: C.line, backgroundColor: C.paper2 }}>
+      <section className="relative py-20 px-6 border-t grain" style={{ borderColor: C.line, backgroundColor: C.paper2 }}>
+        <FloatingPhoto src="/Fotos/pedid/IMG_9979.jpg" variant="left" rest={-5} caption="la pedida" className="bottom-0 translate-y-[72%] left-3 sm:left-6 lg:left-12" />
         <BlurFade className="max-w-xl mx-auto text-center">
           <FloralDivider className="mb-8 mx-auto" color={C.lilaDeep} soft={C.lila} />
           <p className="text-xl md:text-2xl leading-relaxed italic font-light" style={{ fontFamily: "var(--font-fraunces)", color: C.mid }}>
@@ -773,7 +914,8 @@ export default function Invitation33({
       </section>
 
       {/* ░░ CONTADOR ░░ */}
-      <section className="py-16 px-6 border-t" style={{ borderColor: C.line }}>
+      <section className="relative py-16 px-6 border-t" style={{ borderColor: C.line }}>
+        <FloatingPhoto src="/Fotos/pedid/IMG_0024.jpg" ratio="landscape" variant="leaf" rest={5} sizeClass="w-36 sm:w-44 lg:w-56" className="bottom-0 translate-y-[72%] right-3 sm:right-6 lg:right-12" />
         <BlurFade><p className="text-center text-[11px] uppercase tracking-[0.4em] mb-8" style={{ color: C.lilaDeep }}>Falta poco</p></BlurFade>
         <div className="mx-auto w-fit flex divide-x rounded-2xl px-4 py-5"
           style={{ borderColor: C.line, backgroundColor: "rgba(255,255,255,0.55)", boxShadow: "0 10px 30px -16px rgba(120,90,170,0.25)", backdropFilter: "blur(6px)" }}>
@@ -782,10 +924,11 @@ export default function Invitation33({
       </section>
 
       {/* ░░ PADRES ░░ */}
-      <section className="py-20 px-6 border-t grain" style={{ borderColor: C.line, backgroundColor: C.paper2 }}>
+      <section className="relative py-20 px-6 border-t grain" style={{ borderColor: C.line, backgroundColor: C.paper2 }}>
+        <FloatingPhoto src="/Fotos/pedid/IMG_0033.jpg" variant="pop" rest={6} className="bottom-0 translate-y-[72%] left-3 sm:left-6 lg:left-12" />
         <SectionTitle kicker="Con la bendición de">Nuestros padres</SectionTitle>
         <div className="max-w-2xl mx-auto grid sm:grid-cols-2 gap-6">
-          {[parents.novia, parents.novio].map((p, i) => (
+          {[parents.novio, parents.novia].map((p, i) => (
             <BlurFade key={p.label} delay={i * 0.12}>
               <div className="rounded-3xl p-7 text-center h-full" style={{ backgroundColor: C.paper, border: `1px solid ${C.line}`, boxShadow: "0 10px 30px -16px rgba(120,90,170,0.25)" }}>
                 <p className="text-[10px] uppercase tracking-[0.3em] mb-3" style={{ color: C.lilaDeep }}>{p.label}</p>
@@ -797,7 +940,8 @@ export default function Invitation33({
       </section>
 
       {/* ░░ HISTORIA ░░ */}
-      <section className="py-20 px-6 border-t" style={{ borderColor: C.line }}>
+      <section className="relative py-20 px-6 border-t" style={{ borderColor: C.line }}>
+        <FloatingPhoto src="/Fotos/pedid/IMG_9984.jpg" variant="right" rest={-6} caption="♡" className="bottom-0 translate-y-[72%] right-3 sm:right-6 lg:right-12" />
         <SectionTitle>Nuestra historia</SectionTitle>
         <BlurFade className="max-w-xl mx-auto text-center">
           <p className="text-xl md:text-2xl leading-relaxed italic font-light" style={{ fontFamily: "var(--font-fraunces)", color: C.mid }}>
@@ -807,7 +951,8 @@ export default function Invitation33({
       </section>
 
       {/* ░░ CALENDARIO ░░ */}
-      <section className="py-20 px-6 border-t grain" style={{ borderColor: C.line, backgroundColor: C.paper2 }}>
+      <section className="relative py-20 px-6 border-t grain" style={{ borderColor: C.line, backgroundColor: C.paper2 }}>
+        <FloatingPhoto src="/Fotos/pedid/IMG_0057.jpg" ratio="landscape" variant="leaf" rest={-4} sizeClass="w-36 sm:w-44 lg:w-56" className="bottom-0 translate-y-[72%] left-3 sm:left-6 lg:left-12" />
         <SectionTitle kicker="Reserva la fecha">El gran día</SectionTitle>
         <BlurFade><p className="text-center text-xs uppercase tracking-[0.3em] mb-8" style={{ color: C.faint }}>Sábado · Julio 2026</p></BlurFade>
         <BlurFade><Calendar /></BlurFade>
@@ -874,7 +1019,8 @@ export default function Invitation33({
       </section>
 
       {/* ░░ ITINERARIO / PROGRAMA ░░ */}
-      <section className="py-20 px-6 border-t" style={{ borderColor: C.line }}>
+      <section className="relative py-20 px-6 border-t" style={{ borderColor: C.line }}>
+        <FloatingPhoto src="/Fotos/pedid/IMG_0039.jpg" variant="tilt" rest={5} className="bottom-0 translate-y-[72%] right-3 sm:right-6 lg:right-12" />
         <SectionTitle kicker="Programa del día">Itinerario</SectionTitle>
         <Itinerary />
         <BlurFade><div className="flex justify-center mt-10"><svg width="40" height="26" viewBox="0 0 48 32" fill="none" stroke={C.lila} strokeWidth="1.2"><path d="M4 22h40M8 22l3-9h18l7 9M14 13v9M22 13v9" /><circle cx="14" cy="24" r="3" /><circle cx="34" cy="24" r="3" /></svg></div></BlurFade>
@@ -887,7 +1033,8 @@ export default function Invitation33({
       </section>
 
       {/* ░░ MESA DE REGALOS ░░ */}
-      <section className="py-20 px-6 border-t" style={{ borderColor: C.line }}>
+      <section className="relative py-20 px-6 border-t" style={{ borderColor: C.line }}>
+        <FloatingPhoto src="/Fotos/pedid/IMG_0013.jpg" variant="left" rest={6} caption="para siempre" className="bottom-0 translate-y-[72%] left-3 sm:left-6 lg:left-12" />
         <SectionTitle kicker="Si deseas obsequiarnos algo">Mesa de regalos</SectionTitle>
         <BlurFade className="max-w-lg mx-auto text-center">
           <p className="italic text-lg mb-8" style={{ fontFamily: "var(--font-fraunces)", color: C.mid }}>
