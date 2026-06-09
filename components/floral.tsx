@@ -75,15 +75,18 @@ export function PetalRain({
    Blossom · florecita que florece desde el centro
    ───────────────────────────────────────────── */
 export function Blossom({
-  cx, cy, r = 7, petalR = 5, color = "#c4aee0", center = "#8f7bb3", delay = 0,
+  cx, cy, r = 7, petalR = 5, color = "#c4aee0", center = "#8f7bb3", delay = 0, eager = false,
 }: {
-  cx: number; cy: number; r?: number; petalR?: number; color?: string; center?: string; delay?: number;
+  cx: number; cy: number; r?: number; petalR?: number; color?: string; center?: string; delay?: number; eager?: boolean;
 }) {
+  // eager → anima al montar (para elementos visibles desde la carga, p.ej. el hero).
+  const anim = eager
+    ? { animate: { opacity: 1, scale: 1 } }
+    : { whileInView: { opacity: 1, scale: 1 }, viewport: { once: true, amount: 0 } as const };
   return (
     <motion.g
       initial={{ opacity: 0, scale: 0 }}
-      whileInView={{ opacity: 1, scale: 1 }}
-      viewport={{ once: true, margin: "-10%" }}
+      {...anim}
       transition={{ delay, type: "spring", stiffness: 160, damping: 12 }}
       style={{ transformBox: "view-box", transformOrigin: `${cx}px ${cy}px` }}
     >
@@ -102,22 +105,27 @@ export function Blossom({
    FloralCorner · rama line-art que se dibroja sola
    ───────────────────────────────────────────── */
 export function FloralCorner({
-  className = "", color = "#8f7bb3", soft = "#c4aee0", delay = 0, mirror = false,
+  className = "", color = "#8f7bb3", soft = "#c4aee0", delay = 0, mirror = false, eager = false,
 }: {
-  className?: string; color?: string; soft?: string; delay?: number; mirror?: boolean;
+  className?: string; color?: string; soft?: string; delay?: number; mirror?: boolean; eager?: boolean;
 }) {
-  const drawn = (d: string, w: number, dl: number) => (
-    <motion.path
-      d={d}
-      stroke={color}
-      strokeWidth={w}
-      strokeLinecap="round"
-      initial={{ pathLength: 0, opacity: 0 }}
-      whileInView={{ pathLength: 1, opacity: 1 }}
-      viewport={{ once: true, amount: 0, margin: "200px 0px 0px 0px" }}
-      transition={{ duration: 1.5, delay: delay + dl, ease: "easeInOut" }}
-    />
-  );
+  // eager → anima al montar (para elementos visibles desde la carga, p.ej. el hero).
+  const drawn = (d: string, w: number, dl: number) => {
+    const anim = eager
+      ? { animate: { pathLength: 1, opacity: 1 } }
+      : { whileInView: { pathLength: 1, opacity: 1 }, viewport: { once: true, amount: 0 } as const };
+    return (
+      <motion.path
+        d={d}
+        stroke={color}
+        strokeWidth={w}
+        strokeLinecap="round"
+        initial={{ pathLength: 0, opacity: 0 }}
+        {...anim}
+        transition={{ duration: 1.5, delay: delay + dl, ease: "easeInOut" }}
+      />
+    );
+  };
 
   return (
     <svg viewBox="0 0 170 170" className={className} fill="none" style={{ transform: mirror ? "scaleX(-1)" : undefined }}>
@@ -129,9 +137,9 @@ export function FloralCorner({
       {drawn("M76,96 C94,90 112,98 112,114 C94,116 80,110 76,96 Z", 1.2, 0.9)}
       {drawn("M20,40 C14,58 22,76 40,82", 1.2, 0.6)}
       {/* florecitas */}
-      <Blossom cx={86} cy={28} r={6} petalR={4} color={soft} center={color} delay={delay + 1.1} />
-      <Blossom cx={108} cy={70} r={7} petalR={4.5} color={soft} center={color} delay={delay + 1.3} />
-      <Blossom cx={70} cy={150} r={6} petalR={4} color={soft} center={color} delay={delay + 1.5} />
+      <Blossom cx={86} cy={28} r={6} petalR={4} color={soft} center={color} delay={delay + 1.1} eager={eager} />
+      <Blossom cx={108} cy={70} r={7} petalR={4.5} color={soft} center={color} delay={delay + 1.3} eager={eager} />
+      <Blossom cx={70} cy={150} r={6} petalR={4} color={soft} center={color} delay={delay + 1.5} eager={eager} />
     </svg>
   );
 }

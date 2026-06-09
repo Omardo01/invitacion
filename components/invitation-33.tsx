@@ -836,10 +836,10 @@ export default function Invitation33({
 
       {/* ░░ HERO — fecha gigante detrás + nombres con revelado de letras (de la 9 y la 24) ░░ */}
       <section className="relative min-h-screen flex flex-col items-center justify-center text-center px-6 py-24 overflow-hidden grain">
-        <FloralCorner className="absolute -top-2 -left-2 w-32 h-32 md:w-52 md:h-52 z-0" color={C.lilaDeep} soft={C.lila} />
-        <FloralCorner className="absolute -top-2 -right-2 w-32 h-32 md:w-52 md:h-52 z-0" color={C.lilaDeep} soft={C.lila} mirror />
-        <FloralCorner className="absolute -bottom-2 -left-2 w-28 h-28 md:w-44 md:h-44 z-0 rotate-180" color={C.lilaDeep} soft={C.lila} mirror />
-        <FloralCorner className="absolute -bottom-2 -right-2 w-28 h-28 md:w-44 md:h-44 z-0 rotate-180" color={C.lilaDeep} soft={C.lila} />
+        <FloralCorner eager className="absolute -top-2 -left-2 w-32 h-32 md:w-52 md:h-52 z-0" color={C.lilaDeep} soft={C.lila} />
+        <FloralCorner eager className="absolute -top-2 -right-2 w-32 h-32 md:w-52 md:h-52 z-0" color={C.lilaDeep} soft={C.lila} mirror />
+        <FloralCorner eager className="absolute -bottom-2 -left-2 w-28 h-28 md:w-44 md:h-44 z-0 rotate-180" color={C.lilaDeep} soft={C.lila} mirror />
+        <FloralCorner eager className="absolute -bottom-2 -right-2 w-28 h-28 md:w-44 md:h-44 z-0 rotate-180" color={C.lilaDeep} soft={C.lila} />
 
         {/* fecha gigante translúcida de fondo */}
         <div className="absolute inset-0 flex flex-col items-center justify-center select-none pointer-events-none z-0 leading-[0.78]">
