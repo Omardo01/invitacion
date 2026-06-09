@@ -292,16 +292,16 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3 flex-wrap">
           <span className="text-2xl">💍</span>
           <div>
-            <h1 className="text-lg font-semibold text-gray-900">
+            <h1 className="text-base sm:text-lg font-semibold text-gray-900 leading-tight">
               Gabriel &amp; Zayra · Dashboard
             </h1>
             <p className="text-xs text-gray-500">25 de julio 2026</p>
           </div>
-          <nav className="ml-4 flex items-center gap-1">
+          <nav className="flex items-center gap-1 sm:ml-2">
             <span className="text-sm px-3 py-1.5 rounded-lg font-medium bg-gray-900 text-white">
               Invitados
             </span>
@@ -310,7 +310,7 @@ export default function AdminPage() {
             </Link>
           </nav>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button
             onClick={exportCSV}
             className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
@@ -361,7 +361,8 @@ export default function AdminPage() {
                 : "Sin resultados para esa búsqueda."}
             </div>
           ) : (
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[560px]">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wide text-gray-400 border-b border-gray-100">
                   <th className="px-4 py-3 font-medium">Nombre</th>
@@ -448,6 +449,7 @@ export default function AdminPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </div>
       </main>

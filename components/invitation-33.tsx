@@ -852,11 +852,24 @@ export default function Invitation33({
         </div>
 
         <div className="relative z-10 flex flex-col items-center">
-          {/* bendición · antes de la foto */}
-          <motion.p initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1, delay: 0.1 }}
-            className="mb-7 max-w-[18rem] text-sm sm:text-base leading-relaxed" style={{ fontFamily: "var(--font-fraunces)", fontStyle: "italic", color: C.mid }}>
-            Con la bendición de Dios y de nuestros padres
-          </motion.p>
+          {/* saludo personalizado · encima de la foto */}
+          {guestName && (
+            <motion.p initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1, delay: 0.05 }}
+              className="mb-4 text-2xl sm:text-3xl" style={{ fontFamily: "var(--font-great-vibes)", color: C.mid }}>
+              Hola, {guestName}
+            </motion.p>
+          )}
+
+          {/* bendición + invitación · antes de la foto */}
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1, delay: 0.1 }}
+            className="mb-7 flex flex-col items-center gap-1 text-center">
+            <p className="max-w-[18rem] text-sm sm:text-base leading-relaxed" style={{ fontFamily: "var(--font-fraunces)", fontStyle: "italic", color: C.mid }}>
+              Con la bendición de Dios y de nuestros padres
+            </p>
+            <p className="text-sm sm:text-base" style={{ fontFamily: "var(--font-fraunces)", color: C.faint }}>
+              los invitamos a
+            </p>
+          </motion.div>
 
           {/* foto de los novios en óvalo */}
           <motion.div
@@ -873,13 +886,6 @@ export default function Invitation33({
 
           <motion.p initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
             className="text-[11px] uppercase tracking-[0.5em] mb-3" style={{ color: C.lilaDeep }}>Nuestra boda</motion.p>
-
-          {guestName && (
-            <motion.p initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}
-              className="mb-6 text-2xl sm:text-3xl" style={{ fontFamily: "var(--font-great-vibes)", color: C.mid }}>
-              Hola, {guestName}
-            </motion.p>
-          )}
 
           <h1 className="text-5xl sm:text-7xl md:text-8xl leading-[0.95]" style={{ fontFamily: "var(--font-great-vibes)", color: C.ink }}>
             <LetterReveal text={wedding.groom} delay={0.5} />
@@ -915,7 +921,7 @@ export default function Invitation33({
 
       {/* ░░ CONTADOR ░░ */}
       <section className="relative py-16 px-6 border-t" style={{ borderColor: C.line }}>
-        <FloatingPhoto src="/Fotos/pedid/IMG_0024.jpg" ratio="landscape" variant="leaf" rest={5} sizeClass="w-36 sm:w-44 lg:w-56" className="bottom-0 translate-y-[72%] right-3 sm:right-6 lg:right-12" />
+        <FloatingPhoto src="/Fotos/pedid/IMG_0024.jpg" ratio="landscape" variant="leaf" rest={5} sizeClass="w-28 sm:w-36 lg:w-44" className="bottom-0 translate-y-[72%] right-3 sm:right-6 lg:right-12" />
         <BlurFade><p className="text-center text-[11px] uppercase tracking-[0.4em] mb-8" style={{ color: C.lilaDeep }}>Falta poco</p></BlurFade>
         <div className="mx-auto w-fit flex divide-x rounded-2xl px-4 py-5"
           style={{ borderColor: C.line, backgroundColor: "rgba(255,255,255,0.55)", boxShadow: "0 10px 30px -16px rgba(120,90,170,0.25)", backdropFilter: "blur(6px)" }}>

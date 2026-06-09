@@ -114,7 +114,7 @@ export function FloralCorner({
       strokeLinecap="round"
       initial={{ pathLength: 0, opacity: 0 }}
       whileInView={{ pathLength: 1, opacity: 1 }}
-      viewport={{ once: true }}
+      viewport={{ once: true, amount: 0, margin: "200px 0px 0px 0px" }}
       transition={{ duration: 1.5, delay: delay + dl, ease: "easeInOut" }}
     />
   );
@@ -176,7 +176,7 @@ export function EucalyptusSprig({
         strokeLinecap="round"
         initial={{ pathLength: 0, opacity: 0 }}
         whileInView={{ pathLength: 1, opacity: 0.8 }}
-        viewport={{ once: true }}
+        viewport={{ once: true, amount: 0 }}
         transition={{ duration: 1.6, delay, ease: "easeInOut" }}
       />
       {leaves.map((l, i) => (
@@ -184,7 +184,7 @@ export function EucalyptusSprig({
           key={i}
           initial={{ opacity: 0, scale: 0 }}
           whileInView={{ opacity: l.o, scale: 1 }}
-          viewport={{ once: true }}
+          viewport={{ once: true, amount: 0 }}
           transition={{ delay: delay + 0.3 + i * 0.12, type: "spring", stiffness: 150, damping: 13 }}
           style={{ transformBox: "view-box", transformOrigin: `${l.x}px ${l.y}px` }}
         >
@@ -260,7 +260,7 @@ export function LavenderSprig({
           <motion.g key={si}
             initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
+            viewport={{ once: true, amount: 0 }}
             transition={{ delay: delay + si * 0.15, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
           >
             {stemEl}
@@ -295,7 +295,7 @@ export function WatercolorBouquet({
     <motion.g
       initial={{ opacity: 0, scale: 0 }}
       whileInView={{ opacity: 1, scale: 1 }}
-      viewport={{ once: true }}
+      viewport={{ once: true, amount: 0 }}
       transition={{ delay: delay + d, type: "spring", stiffness: 140, damping: 13 }}
       style={{ transformBox: "view-box", transformOrigin: `${cx}px ${cy}px` }}
     >
@@ -317,7 +317,7 @@ export function WatercolorBouquet({
     <motion.g
       initial={{ opacity: 0, scale: 0 }}
       whileInView={{ opacity: 0.9, scale: 1 }}
-      viewport={{ once: true }}
+      viewport={{ once: true, amount: 0 }}
       transition={{ delay: delay + d, type: "spring", stiffness: 150, damping: 14 }}
       style={{ transformBox: "view-box", transformOrigin: `${x}px ${y}px` }}
     >
@@ -362,7 +362,7 @@ export function FloralDivider({ color = "#8f7bb3", soft = "#c4aee0", className =
       style={{ transform: flip ? "scaleX(-1)" : undefined, transformOrigin: "center" }}
       initial={{ pathLength: 0 }}
       whileInView={{ pathLength: 1 }}
-      viewport={{ once: true }}
+      viewport={{ once: true, amount: 0 }}
       transition={{ duration: 1.2, delay: dl, ease: "easeInOut" }}
     />
   );
@@ -370,11 +370,11 @@ export function FloralDivider({ color = "#8f7bb3", soft = "#c4aee0", className =
     <div className={`flex justify-center ${className}`}>
       <svg viewBox="0 0 220 40" className="w-52 h-10" fill="none">
         {/* línea central */}
-        <motion.line x1="60" y1="20" x2="160" y2="20" stroke={color} strokeWidth="1" initial={{ pathLength: 0 }} whileInView={{ pathLength: 1 }} viewport={{ once: true }} transition={{ duration: 0.9 }} />
+        <motion.line x1="60" y1="20" x2="160" y2="20" stroke={color} strokeWidth="1" initial={{ pathLength: 0 }} whileInView={{ pathLength: 1 }} viewport={{ once: true, amount: 0 }} transition={{ duration: 0.9 }} />
         {/* hojas izquierda */}
         <g transform="translate(110,20)">
-          <motion.path d="M-50,0 C-66,-12 -84,-8 -88,4 C-72,8 -56,6 -50,0 Z" stroke={color} strokeWidth="1.1" initial={{ pathLength: 0 }} whileInView={{ pathLength: 1 }} viewport={{ once: true }} transition={{ duration: 1, delay: 0.5 }} />
-          <motion.path d="M50,0 C66,-12 84,-8 88,4 C72,8 56,6 50,0 Z" stroke={color} strokeWidth="1.1" initial={{ pathLength: 0 }} whileInView={{ pathLength: 1 }} viewport={{ once: true }} transition={{ duration: 1, delay: 0.5 }} />
+          <motion.path d="M-50,0 C-66,-12 -84,-8 -88,4 C-72,8 -56,6 -50,0 Z" stroke={color} strokeWidth="1.1" initial={{ pathLength: 0 }} whileInView={{ pathLength: 1 }} viewport={{ once: true, amount: 0 }} transition={{ duration: 1, delay: 0.5 }} />
+          <motion.path d="M50,0 C66,-12 84,-8 88,4 C72,8 56,6 50,0 Z" stroke={color} strokeWidth="1.1" initial={{ pathLength: 0 }} whileInView={{ pathLength: 1 }} viewport={{ once: true, amount: 0 }} transition={{ duration: 1, delay: 0.5 }} />
         </g>
         {/* flor central */}
         <Blossom cx={110} cy={20} r={7} petalR={4.5} color={soft} center={color} delay={0.9} />

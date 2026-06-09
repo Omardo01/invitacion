@@ -9,16 +9,23 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <>
-      {/* Botón de cerrar sesión, flotante para no estorbar el panel. */}
-      <form action="/api/admin/logout" method="post" className="fixed top-3 right-3 z-[60]">
-        <button
-          type="submit"
-          className="rounded-full px-3 py-1.5 text-xs uppercase tracking-wider text-white shadow transition-opacity hover:opacity-90"
-          style={{ backgroundColor: "#8a6cb8" }}
-        >
-          Cerrar sesión
-        </button>
-      </form>
+      {/* Barra superior de admin (en flujo, no flotante → no choca con el header). */}
+      <div
+        className="flex items-center justify-between gap-3 px-4 py-1.5 text-white"
+        style={{ backgroundColor: "#2a2440" }}
+      >
+        <span className="text-[11px] uppercase tracking-[0.2em] opacity-80">
+          Panel<span className="hidden sm:inline"> · Gabriel &amp; Zayra</span>
+        </span>
+        <form action="/api/admin/logout" method="post">
+          <button
+            type="submit"
+            className="text-[11px] uppercase tracking-[0.15em] rounded-full px-3 py-1 transition-colors hover:bg-white/15"
+          >
+            Cerrar sesión →
+          </button>
+        </form>
+      </div>
       {children}
     </>
   );

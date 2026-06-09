@@ -7,7 +7,7 @@ export const contentType = "image/png";
 
 // Caracteres usados en cada tipografía (para sub-dividir la fuente al mínimo).
 const SCRIPT_TEXT = "Gabriel & Zayra GZ&";
-const SERIF_TEXT = "NUESTRA BODA 25 DE JULIO 2026 VILLAHERMOSA, TABASCO";
+const SERIF_TEXT = "NUESTRA BODA 25 DE JULIO 2026 VILLAHERMOSA, TABASCO G&Z";
 
 export default async function OpengraphImage() {
   const [script, serif] = await Promise.all([
@@ -59,8 +59,10 @@ export default async function OpengraphImage() {
             marginBottom: 30,
           }}
         >
-          <div style={{ display: "flex", fontFamily: "Script", fontSize: 74, color: "#ffffff", marginTop: 10 }}>
-            G&amp;Z
+          <div style={{ display: "flex", alignItems: "center", fontFamily: "Serif", fontWeight: 600 }}>
+            <div style={{ display: "flex", fontSize: 62, color: "#ffffff" }}>G</div>
+            <div style={{ display: "flex", fontSize: 56, color: "#e7d8f6", margin: "0 3px" }}>&amp;</div>
+            <div style={{ display: "flex", fontSize: 62, color: "#ffffff" }}>Z</div>
           </div>
         </div>
 
