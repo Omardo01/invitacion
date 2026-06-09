@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence, useScroll, useSpring, useTransform } from "motion/react";
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useRef, useState, useEffect, useCallback, createContext, useContext } from "react";
 import confetti from "canvas-confetti";
 import { wedding } from "@/lib/wedding";
 import { BlurFade, useCountdown } from "@/components/magic";
@@ -259,6 +259,9 @@ function Itinerary() {
    detrás del contenido (cada sección anfitriona lleva `isolate` y la foto
    `-z-10`) para acompañar la lectura sin estorbarla.
    ───────────────────────────────────────────── */
+/* Contexto para abrir en grande cualquier foto flotante de la pedida. */
+const PedidaLightbox = createContext<((src: string, caption?: string) => void) | null>(null);
+
 type FloatVariant = "left" | "right" | "leaf" | "pop" | "tilt";
 type MotionDivProps = React.ComponentProps<typeof motion.div>;
 
@@ -320,11 +323,14 @@ function FloatingPhoto({
   sizeClass?: string;
 }) {
   const a = floatAnim(variant, rest);
+  const openLightbox = useContext(PedidaLightbox);
   return (
     // Contenedor posicionado SOBRE la unión entre secciones (montado en el borde
     // con translate). Es un <div> normal a propósito: así Tailwind controla el
     // transform de posición sin chocar con los transforms de la animación.
-    <div aria-hidden className={`pointer-events-none absolute z-30 select-none ${sizeClass} ${className}`}>
+    // pointer-events-none en el contenedor para no estorbar el scroll/lectura;
+    // el marco re-activa los clics (pointer-events-auto) para poder abrir la foto.
+    <div className={`pointer-events-none absolute z-30 select-none ${sizeClass} ${className}`}>
       {/* observador del scroll: se queda en su sitio (el divisor, zona sin texto),
           por eso el IntersectionObserver siempre dispara aunque la entrada arranque fuera. */}
       <motion.div className="w-full" initial="hidden" whileInView="show" viewport={{ once: true, margin: "-40px" }}>
@@ -336,24 +342,85 @@ function FloatingPhoto({
             animate={{ y: [0, -8, 0], rotate: [0, 1.6, 0] }}
             transition={{ duration: 6.5, repeat: Infinity, ease: "easeInOut", delay }}
           >
-            {/* marco tipo polaroid */}
-            <div
-              className="w-full rounded-[7px] p-1.5 pb-5"
+            {/* marco tipo polaroid · clickeable para ampliar */}
+            <motion.button
+              type="button"
+              onClick={() => openLightbox?.(src, caption)}
+              aria-label="Ampliar foto"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.97 }}
+              className="group pointer-events-auto block w-full cursor-pointer rounded-[7px] p-1.5 pb-5"
               style={{ backgroundColor: "#fff", border: `1px solid ${C.line}`, boxShadow: "0 22px 46px -18px rgba(120,90,170,0.6)" }}
             >
               <div className={`relative w-full overflow-hidden rounded-[4px] ${ratio === "portrait" ? "aspect-[3/4]" : "aspect-[4/3]"}`}>
-                <Image src={src} alt="" fill sizes="(max-width: 1024px) 160px, 220px" quality={75} className="object-cover" />
+                <Image src={src} alt={caption || "Foto de la pedida"} fill sizes="(max-width: 1024px) 160px, 220px" quality={75} className="object-cover" />
+                {/* ícono ampliar al pasar el cursor */}
+                <span className="absolute inset-0 grid place-items-center opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                  style={{ background: "linear-gradient(to top, rgba(53,44,78,0.35), transparent 60%)" }}>
+                  <span className="grid place-items-center w-8 h-8 rounded-full backdrop-blur-sm" style={{ backgroundColor: "rgba(255,255,255,0.9)" }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={C.lilaDeep} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                    </svg>
+                  </span>
+                </span>
               </div>
               {caption && (
                 <p className="mt-1.5 text-center leading-none" style={{ fontFamily: "var(--font-great-vibes)", color: C.lilaDeep, fontSize: "0.95rem" }}>
                   {caption}
                 </p>
               )}
-            </div>
+            </motion.button>
           </motion.div>
         </motion.div>
       </motion.div>
     </div>
+  );
+}
+
+/* ── Lightbox para las fotos flotantes de la pedida (una sola imagen) ── */
+function PedidaLightboxView({ photo, onClose }: { photo: { src: string; caption?: string }; onClose: () => void }) {
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => { document.body.style.overflow = ""; window.removeEventListener("keydown", onKey); };
+  }, [onClose]);
+
+  return (
+    <motion.div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8"
+      style={{ backgroundColor: "rgba(35,28,55,0.86)", backdropFilter: "blur(10px)" }}
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      onClick={onClose}
+    >
+      <button type="button" onClick={onClose} aria-label="Cerrar"
+        className="absolute top-5 right-5 z-10 grid place-items-center w-10 h-10 rounded-full text-white cursor-pointer transition-colors hover:bg-white/15"
+        style={{ border: "1px solid rgba(255,255,255,0.3)" }}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+      </button>
+
+      <motion.div
+        className="relative flex flex-col items-center"
+        initial={{ opacity: 0, scale: 0.92 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.96 }}
+        transition={{ type: "spring", stiffness: 260, damping: 26 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Image
+          src={photo.src} width={1200} height={1600}
+          alt={photo.caption || "Foto de la pedida"} sizes="100vw" quality={92} priority
+          className="max-h-[82vh] w-auto max-w-[92vw] object-contain rounded-xl"
+          style={{ boxShadow: "0 30px 80px -20px rgba(0,0,0,0.7)" }}
+        />
+        {photo.caption && (
+          <p className="mt-4 text-center text-2xl text-white/90" style={{ fontFamily: "var(--font-great-vibes)" }}>
+            {photo.caption}
+          </p>
+        )}
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -809,8 +876,11 @@ export default function Invitation33({
   const [confirmed, setConfirmed] = useState(initialConfirmed === 1);
   const [declined, setDeclined] = useState(initialConfirmed === 0);
   const [goingSeats, setGoingSeats] = useState(initialConfirmed === 1 ? seats : 0);
+  const [pedidaPhoto, setPedidaPhoto] = useState<{ src: string; caption?: string } | null>(null);
+  const openPedida = useCallback((src: string, caption?: string) => setPedidaPhoto({ src, caption }), []);
 
   return (
+    <PedidaLightbox.Provider value={openPedida}>
     <div style={{ backgroundColor: C.bg, color: C.ink, fontFamily: "var(--font-syne)" }} className="min-h-screen overflow-x-hidden relative">
       {/* textura de puntos (de la opción 1) — aplicada globalmente y reforzada por sección */}
       <style>{`
@@ -1159,6 +1229,14 @@ export default function Invitation33({
           />
         )}
       </AnimatePresence>
+
+      {/* ░░ LIGHTBOX FOTOS DE LA PEDIDA ░░ */}
+      <AnimatePresence>
+        {pedidaPhoto && (
+          <PedidaLightboxView photo={pedidaPhoto} onClose={() => setPedidaPhoto(null)} />
+        )}
+      </AnimatePresence>
     </div>
+    </PedidaLightbox.Provider>
   );
 }
