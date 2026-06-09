@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 import { getAllAttendees, createAttendee } from "@/lib/attendees";
+import { requireAdmin } from "@/lib/auth";
 
 export async function GET() {
-  return NextResponse.json({ attendees: getAllAttendees() });
+  const deny = await requireAdmin();
+  if (deny) return deny;
+  return NextResponse.json({ attendees: await getAllAttendees() });
 }
 
 export async function POST(req: Request) {
+  const deny = await requireAdmin();
+  if (deny) return deny;
   const body = await req.json();
   const { guest_id, name } = body as { guest_id: number; name: string };
   if (!guest_id || !name?.trim()) {
@@ -14,6 +19,6 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
-  const attendee = createAttendee({ guest_id: Number(guest_id), name: name.trim() });
+  const attendee = await createAttendee({ guest_id: Number(guest_id), name: name.trim() });
   return NextResponse.json(attendee, { status: 201 });
 }

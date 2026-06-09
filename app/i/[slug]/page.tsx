@@ -10,7 +10,7 @@ export default async function InvitationPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const guest = getGuestBySlug(slug);
+  const guest = await getGuestBySlug(slug);
   if (!guest) notFound();
 
   return (

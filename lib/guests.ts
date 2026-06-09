@@ -1,4 +1,4 @@
-import db from "./db";
+import { db } from "./db";
 
 export type Guest = {
   id: number;
@@ -25,69 +25,86 @@ function generateSlug(name: string): string {
   return `${base}-${suffix}`;
 }
 
-export function getAllGuests(): Guest[] {
-  return db
-    .prepare("SELECT * FROM guests ORDER BY created_at DESC")
-    .all() as Guest[];
+export async function getAllGuests(): Promise<Guest[]> {
+  const sql = db();
+  return (await sql`SELECT * FROM guests ORDER BY created_at DESC`) as Guest[];
 }
 
-export function getGuestBySlug(slug: string): Guest | null {
-  return db
-    .prepare("SELECT * FROM guests WHERE slug = ?")
-    .get(slug) as Guest | null;
+export async function getGuestBySlug(slug: string): Promise<Guest | null> {
+  const sql = db();
+  const rows = (await sql`SELECT * FROM guests WHERE slug = ${slug}`) as Guest[];
+  return rows[0] ?? null;
 }
 
-export function createGuest(data: {
+export async function createGuest(data: {
   name: string;
   seats: number;
   phone?: string;
-}): Guest {
+}): Promise<Guest> {
+  const sql = db();
   const slug = generateSlug(data.name);
-  return db
-    .prepare(
-      "INSERT INTO guests (slug, name, seats, phone) VALUES (?, ?, ?, ?) RETURNING *"
-    )
-    .get(slug, data.name, data.seats, data.phone ?? null) as Guest;
+  const rows = (await sql`
+    INSERT INTO guests (slug, name, seats, phone)
+    VALUES (${slug}, ${data.name}, ${data.seats}, ${data.phone ?? null})
+    RETURNING *
+  `) as Guest[];
+  return rows[0];
 }
 
-export function updateGuest(
+export async function updateGuest(
   id: number,
-  data: { name?: string; seats?: number; phone?: string }
-): Guest {
+  data: { name?: string; seats?: number; phone?: string },
+): Promise<Guest> {
+  const sql = db();
   const fields: string[] = [];
   const values: unknown[] = [];
-  if (data.name !== undefined) { fields.push("name = ?"); values.push(data.name); }
-  if (data.seats !== undefined) { fields.push("seats = ?"); values.push(data.seats); }
-  if (data.phone !== undefined) { fields.push("phone = ?"); values.push(data.phone || null); }
+  let i = 1;
+  if (data.name !== undefined) { fields.push(`name = $${i++}`); values.push(data.name); }
+  if (data.seats !== undefined) { fields.push(`seats = $${i++}`); values.push(data.seats); }
+  if (data.phone !== undefined) { fields.push(`phone = $${i++}`); values.push(data.phone || null); }
   values.push(id);
-  return db
-    .prepare(`UPDATE guests SET ${fields.join(", ")} WHERE id = ? RETURNING *`)
-    .get(...values) as Guest;
+  const rows = (await sql.query(
+    `UPDATE guests SET ${fields.join(", ")} WHERE id = $${i} RETURNING *`,
+    values,
+  )) as Guest[];
+  return rows[0];
 }
 
-export function deleteGuest(id: number): void {
-  db.prepare("DELETE FROM guests WHERE id = ?").run(id);
+export async function deleteGuest(id: number): Promise<void> {
+  const sql = db();
+  await sql`DELETE FROM guests WHERE id = ${id}`;
 }
 
-export function confirmRSVP(
+export async function confirmRSVP(
   slug: string,
   confirmed: boolean,
-  notes?: string
-): Guest | null {
+  notes?: string,
+): Promise<Guest | null> {
+  const sql = db();
   const now = new Date().toISOString();
-  return db
-    .prepare(
-      "UPDATE guests SET confirmed = ?, confirmed_at = ?, notes = ? WHERE slug = ? RETURNING *"
-    )
-    .get(confirmed ? 1 : 0, now, notes ?? null, slug) as Guest | null;
+  const rows = (await sql`
+    UPDATE guests
+    SET confirmed = ${confirmed ? 1 : 0}, confirmed_at = ${now}, notes = ${notes ?? null}
+    WHERE slug = ${slug}
+    RETURNING *
+  `) as Guest[];
+  return rows[0] ?? null;
 }
 
-export function getStats() {
-  const total = (db.prepare("SELECT COUNT(*) as n FROM guests").get() as { n: number }).n;
-  const confirmed = (db.prepare("SELECT COUNT(*) as n FROM guests WHERE confirmed = 1").get() as { n: number }).n;
-  const declined = (db.prepare("SELECT COUNT(*) as n FROM guests WHERE confirmed = 0").get() as { n: number }).n;
-  const pending = (db.prepare("SELECT COUNT(*) as n FROM guests WHERE confirmed IS NULL").get() as { n: number }).n;
-  const totalSeats = (db.prepare("SELECT COALESCE(SUM(seats),0) as n FROM guests").get() as { n: number }).n;
-  const confirmedSeats = (db.prepare("SELECT COALESCE(SUM(seats),0) as n FROM guests WHERE confirmed = 1").get() as { n: number }).n;
-  return { total, confirmed, declined, pending, totalSeats, confirmedSeats };
+export async function getStats() {
+  const sql = db();
+  const rows = (await sql`
+    SELECT
+      COUNT(*)::int                                          AS total,
+      COUNT(*) FILTER (WHERE confirmed = 1)::int             AS confirmed,
+      COUNT(*) FILTER (WHERE confirmed = 0)::int             AS declined,
+      COUNT(*) FILTER (WHERE confirmed IS NULL)::int         AS pending,
+      COALESCE(SUM(seats), 0)::int                           AS "totalSeats",
+      COALESCE(SUM(seats) FILTER (WHERE confirmed = 1), 0)::int AS "confirmedSeats"
+    FROM guests
+  `) as {
+    total: number; confirmed: number; declined: number;
+    pending: number; totalSeats: number; confirmedSeats: number;
+  }[];
+  return rows[0];
 }

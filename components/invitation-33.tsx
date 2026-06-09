@@ -952,7 +952,7 @@ export default function Invitation33({
 
       {/* ░░ CALENDARIO ░░ */}
       <section className="relative py-20 px-6 border-t grain" style={{ borderColor: C.line, backgroundColor: C.paper2 }}>
-        <FloatingPhoto src="/Fotos/pedid/IMG_0057.jpg" ratio="landscape" variant="leaf" rest={-4} sizeClass="w-36 sm:w-44 lg:w-56" className="bottom-0 translate-y-[72%] left-3 sm:left-6 lg:left-12" />
+        <FloatingPhoto src="/Fotos/pedid/IMG_0057.jpg" ratio="landscape" variant="leaf" rest={-4} sizeClass="w-36 sm:w-44 lg:w-56" className="bottom-0 translate-y-[62%] left-3 sm:left-6 lg:left-12" />
         <SectionTitle kicker="Reserva la fecha">El gran día</SectionTitle>
         <BlurFade><p className="text-center text-xs uppercase tracking-[0.3em] mb-8" style={{ color: C.faint }}>Sábado · Julio 2026</p></BlurFade>
         <BlurFade><Calendar /></BlurFade>
@@ -974,7 +974,7 @@ export default function Invitation33({
 
       {/* ░░ LUGAR / UBICACIÓN ░░ */}
       <section className="py-20 px-6 border-t" style={{ borderColor: C.line }}>
-        <SectionTitle kicker="Dónde celebraremos">Lugar</SectionTitle>
+        <SectionTitle>Dónde celebraremos</SectionTitle>
         <div className="max-w-lg mx-auto">
           <BlurFade>
             <motion.div whileHover={{ y: -5 }} transition={{ duration: 0.3 }}
@@ -1035,11 +1035,12 @@ export default function Invitation33({
       {/* ░░ MESA DE REGALOS ░░ */}
       <section className="relative py-20 px-6 border-t" style={{ borderColor: C.line }}>
         <FloatingPhoto src="/Fotos/pedid/IMG_0013.jpg" variant="left" rest={6} caption="para siempre" className="bottom-0 translate-y-[72%] left-3 sm:left-6 lg:left-12" />
-        <SectionTitle kicker="Si deseas obsequiarnos algo">Mesa de regalos</SectionTitle>
+        <SectionTitle>Mesa de regalos</SectionTitle>
         <BlurFade className="max-w-lg mx-auto text-center">
           <p className="italic text-lg mb-8" style={{ fontFamily: "var(--font-fraunces)", color: C.mid }}>
             Tu presencia es nuestro mayor regalo, pero si deseas tener un detalle con nosotros, aquí te dejamos algunas opciones.
           </p>
+          <p className="text-[11px] uppercase tracking-[0.4em] mb-5" style={{ color: C.lilaDeep }}>Opciones</p>
           <div className="space-y-3">
             {gifts.map((g, i) => {
               const inner = (

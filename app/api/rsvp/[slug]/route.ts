@@ -9,7 +9,7 @@ export async function POST(
   const body = await req.json();
   const { confirmed, notes } = body as { confirmed: boolean; notes?: string };
 
-  const guest = confirmRSVP(slug, confirmed, notes);
+  const guest = await confirmRSVP(slug, confirmed, notes);
   if (!guest) {
     return NextResponse.json(
       { error: "Invitado no encontrado" },

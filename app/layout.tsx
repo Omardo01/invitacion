@@ -55,9 +55,31 @@ const fontVars = [
   bricolage.variable,
 ].join(" ");
 
+// URL base para que las previews (WhatsApp, redes) reciban la imagen en absoluto.
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : "http://localhost:3000");
+
 export const metadata: Metadata = {
-  title: "Gabriel & Zayra · 25.07",
-  description: "Nos casamos. Acompáñanos en este día tan especial.",
+  metadataBase: new URL(siteUrl),
+  title: "Gabriel & Zayra · Nuestra boda",
+  description:
+    "¡Nos casamos! Acompáñanos a celebrar nuestra boda el 25 de julio de 2026 en Villahermosa, Tabasco.",
+  openGraph: {
+    title: "Gabriel & Zayra · Nuestra boda",
+    description:
+      "¡Nos casamos! Te esperamos el 25 de julio de 2026 en Villahermosa, Tabasco.",
+    type: "website",
+    locale: "es_MX",
+    siteName: "Gabriel & Zayra",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Gabriel & Zayra · Nuestra boda",
+    description: "¡Nos casamos! 25 de julio de 2026 · Villahermosa, Tabasco.",
+  },
 };
 
 export default function RootLayout({

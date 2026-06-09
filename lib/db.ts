@@ -1,41 +1,24 @@
-import Database from "better-sqlite3";
-import path from "path";
-import { mkdirSync } from "fs";
+import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 
-const DB_PATH = path.join(process.cwd(), "data", "wedding.db");
-mkdirSync(path.dirname(DB_PATH), { recursive: true });
+/**
+ * Cliente de Neon (Postgres serverless) sobre HTTP — ideal para Route Handlers
+ * y Server Components, que hacen una consulta corta por request.
+ *
+ * Se inicializa de forma perezosa para no romper el build si `DATABASE_URL`
+ * todavía no está configurada. Con la integración de Neon en el Marketplace de
+ * Vercel, la variable se inyecta automáticamente; en local: `vercel env pull`.
+ */
+let cached: NeonQueryFunction<false, false> | undefined;
 
-const db = new Database(DB_PATH);
-db.pragma("journal_mode = WAL");
-db.pragma("foreign_keys = ON");
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS guests (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    slug        TEXT    UNIQUE NOT NULL,
-    name        TEXT    NOT NULL,
-    seats       INTEGER NOT NULL DEFAULT 1,
-    phone       TEXT,
-    confirmed   INTEGER DEFAULT NULL,   -- NULL=pendiente, 1=sí, 0=no
-    confirmed_at TEXT   DEFAULT NULL,
-    notes       TEXT    DEFAULT NULL,
-    created_at  TEXT    DEFAULT (datetime('now','localtime'))
-  );
-
-  CREATE TABLE IF NOT EXISTS tables (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    name       TEXT    NOT NULL,
-    capacity   INTEGER NOT NULL DEFAULT 12,
-    created_at TEXT    DEFAULT (datetime('now','localtime'))
-  );
-
-  CREATE TABLE IF NOT EXISTS attendees (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    guest_id   INTEGER NOT NULL REFERENCES guests(id) ON DELETE CASCADE,
-    name       TEXT    NOT NULL,
-    table_id   INTEGER REFERENCES tables(id) ON DELETE SET NULL,
-    created_at TEXT    DEFAULT (datetime('now','localtime'))
-  );
-`);
-
-export default db;
+export function db(): NeonQueryFunction<false, false> {
+  if (!cached) {
+    const url = process.env.DATABASE_URL;
+    if (!url) {
+      throw new Error(
+        "Falta DATABASE_URL. Crea la base Neon (Vercel → Storage → Neon) y corre `vercel env pull .env.local`.",
+      );
+    }
+    cached = neon(url);
+  }
+  return cached;
+}
