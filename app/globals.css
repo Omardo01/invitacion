@@ -43,3 +43,10 @@ body {
     transform: translateX(420%) skewX(-12deg);
   }
 }
+
+/* anillo de luz que gira alrededor de un borde (shimmer de lujo) */
+@keyframes border-spin {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
