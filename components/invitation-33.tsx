@@ -680,6 +680,7 @@ function RSVPModal({ seats, mode, slug, onClose, onConfirmed }: {
                 <p className="text-[10px] uppercase tracking-[0.35em] mb-2" style={{ color: C.lilaDeep }}>Confirmación</p>
                 <h3 className="text-4xl" style={{ fontFamily: "var(--font-great-vibes)", color: C.lilaDeep }}>¿Nos acompañas?</h3>
                 <p className="text-sm mt-2" style={{ color: C.mid }}>Tienes <strong style={{ color: C.lilaDeep }}>{seats} {seats === 1 ? "lugar reservado" : "lugares reservados"}</strong>. ¿Cuántos asistirán? Confirma antes del <strong style={{ color: C.lilaDeep }}>{wedding.rsvpDeadline}</strong>.</p>
+                <p className="text-sm mt-1 font-medium" style={{ color: C.lilaDeep }}>Solo para adultos (no niños).</p>
               </div>
 
               {/* selector de cantidad */}
@@ -1164,11 +1165,16 @@ export default function Invitation33({
             {!confirmed && !declined ? (
               <motion.div key="invite" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}>
                 <SectionTitle kicker="Te esperamos">¿Nos acompañas?</SectionTitle>
-                <p className="mb-10" style={{ color: C.mid }}>
+                <p className={mode === "live" ? "mb-3" : "mb-10"} style={{ color: C.mid }}>
                   {mode === "live"
                     ? <>Tienes <strong style={{ color: C.lilaDeep }}>{seats} {seats === 1 ? "lugar reservado" : "lugares reservados"}</strong>. Confirma antes del <strong style={{ color: C.lilaDeep }}>{wedding.rsvpDeadline}</strong>.</>
                     : <>Tu respuesta hace este día más nuestro. Confirma antes del <strong style={{ color: C.lilaDeep }}>{wedding.rsvpDeadline}</strong>.</>}
                 </p>
+                {mode === "live" && (
+                  <p className="mb-10 text-base font-medium" style={{ color: C.lilaDeep }}>
+                    Lugares reservados solo para adultos (no niños).
+                  </p>
+                )}
                 <motion.button type="button" onClick={() => setRsvpOpen(true)} whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}
                   className="inline-block px-10 py-4 rounded-full text-white text-sm uppercase tracking-[0.25em] cursor-pointer"
                   style={{ backgroundColor: C.lilaDeep, boxShadow: "0 18px 34px -16px rgba(120,90,170,0.7)" }}>
