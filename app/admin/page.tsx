@@ -250,6 +250,7 @@ export default function AdminPage() {
   }>({ name: "", seats: "1", phone: "", side: "ambos" });
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
+  const [sideFilter, setSideFilter] = useState<GuestSide | "todos">("todos");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -374,9 +375,14 @@ export default function AdminPage() {
     a.click();
   };
 
-  const filtered = guests.filter((g) =>
-    g.name.toLowerCase().includes(search.toLowerCase())
+  const filtered = guests.filter(
+    (g) =>
+      g.name.toLowerCase().includes(search.toLowerCase()) &&
+      (sideFilter === "todos" || (g.side ?? "ambos") === sideFilter)
   );
+
+  const sideCount = (side: GuestSide) =>
+    guests.filter((g) => (g.side ?? "ambos") === side).length;
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
@@ -430,7 +436,7 @@ export default function AdminPage() {
 
         {/* Search & Table */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3">
+          <div className="px-4 py-3 border-b border-gray-100 flex flex-col gap-3 sm:flex-row sm:items-center">
             <input
               type="text"
               placeholder="Buscar invitado..."
@@ -438,7 +444,27 @@ export default function AdminPage() {
               onChange={(e) => setSearch(e.target.value)}
               className="flex-1 text-sm px-3 py-1.5 rounded-lg border border-gray-200 outline-none focus:border-gray-400 transition-colors"
             />
-            <span className="text-xs text-gray-400">{filtered.length} invitados</span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {([
+                { value: "todos", label: "Todos", count: guests.length },
+                { value: "novio", label: "🤵 Novio", count: sideCount("novio") },
+                { value: "novia", label: "👰 Novia", count: sideCount("novia") },
+                { value: "ambos", label: "💞 Ambos", count: sideCount("ambos") },
+              ] as const).map((f) => (
+                <button
+                  key={f.value}
+                  onClick={() => setSideFilter(f.value)}
+                  className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${
+                    sideFilter === f.value
+                      ? "bg-gray-900 text-white border-gray-900"
+                      : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                  }`}
+                >
+                  {f.label} <span className="opacity-60">{f.count}</span>
+                </button>
+              ))}
+            </div>
+            <span className="text-xs text-gray-400 sm:ml-1 whitespace-nowrap">{filtered.length} invitados</span>
           </div>
 
           {loading ? (
