@@ -35,6 +35,25 @@ await sql`CREATE TABLE IF NOT EXISTS attendees (
   created_at  TEXT NOT NULL DEFAULT (now()::text)
 )`;
 
+/* Etiqueta de invitado: de qué lado viene (novio | novia | ambos).
+   Idempotente, corre siempre, así que es seguro re-ejecutar el script
+   sobre una base que ya tiene datos. */
+await sql`ALTER TABLE guests ADD COLUMN IF NOT EXISTS side TEXT NOT NULL DEFAULT 'ambos'`;
+await sql`ALTER TABLE guests DROP CONSTRAINT IF EXISTS guests_side_check`;
+await sql`ALTER TABLE guests ADD CONSTRAINT guests_side_check CHECK (side IN ('novio','novia','ambos'))`;
+
+/* Estado de la invitación (ciclo de envío): pendiente → enviado → confirmado.
+   - pendiente: creada, aún no se manda (default)
+   - enviado:   se marca a mano cuando se envía
+   - confirmado: automático cuando el invitado confirma su RSVP
+   Idempotente; el backfill solo toca filas aún en el default para no pisar
+   valores ya ajustados a mano. */
+await sql`ALTER TABLE guests ADD COLUMN IF NOT EXISTS invite_status TEXT NOT NULL DEFAULT 'pendiente'`;
+await sql`ALTER TABLE guests DROP CONSTRAINT IF EXISTS guests_invite_status_check`;
+await sql`ALTER TABLE guests ADD CONSTRAINT guests_invite_status_check CHECK (invite_status IN ('pendiente','enviado','confirmado'))`;
+await sql`UPDATE guests SET invite_status = 'confirmado' WHERE confirmed = 1 AND invite_status = 'pendiente'`;
+await sql`UPDATE guests SET invite_status = 'enviado'    WHERE confirmed = 0 AND invite_status = 'pendiente'`;
+
 /* Auth del admin: contraseña (hasheada) en `settings` y sesiones por cookie. */
 await sql`CREATE TABLE IF NOT EXISTS settings (
   key   TEXT PRIMARY KEY,

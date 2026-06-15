@@ -2,8 +2,72 @@
 
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
-import type { Guest } from "@/lib/guests";
+import type { Guest, GuestSide, InviteStatus } from "@/lib/guests";
 import type { Attendee } from "@/lib/attendees";
+
+const SIDE_OPTIONS: { value: GuestSide; label: string }[] = [
+  { value: "novio", label: "Novio" },
+  { value: "novia", label: "Novia" },
+  { value: "ambos", label: "Ambos" },
+];
+
+const INVITE_META: Record<InviteStatus, { label: string; style: string }> = {
+  pendiente: { label: "⏳ Pendiente", style: "bg-amber-50 text-amber-600 border-amber-200" },
+  enviado: { label: "📨 Enviado", style: "bg-blue-50 text-blue-700 border-blue-200" },
+  confirmado: { label: "✓ Confirmado", style: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+};
+
+function InviteStatusBadge({
+  status,
+  onSet,
+}: {
+  status: InviteStatus;
+  onSet: (next: InviteStatus) => void;
+}) {
+  const meta = INVITE_META[status];
+  // "confirmado" es automático (lo fija el RSVP): se muestra pero no se cambia a mano.
+  if (status === "confirmado") {
+    return (
+      <span
+        title="Se confirma automáticamente cuando el invitado responde su RSVP"
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${meta.style}`}
+      >
+        {meta.label}
+      </span>
+    );
+  }
+  // pendiente ⇄ enviado: clic para marcar/desmarcar el envío.
+  const next: InviteStatus = status === "pendiente" ? "enviado" : "pendiente";
+  return (
+    <button
+      onClick={() => onSet(next)}
+      title={status === "pendiente" ? "Marcar como enviada" : "Marcar como pendiente"}
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border transition-colors hover:brightness-95 ${meta.style}`}
+    >
+      {meta.label}
+    </button>
+  );
+}
+
+function sideBadge(side: GuestSide) {
+  const styles: Record<GuestSide, string> = {
+    novio: "bg-blue-50 text-blue-700 border-blue-200",
+    novia: "bg-pink-50 text-pink-700 border-pink-200",
+    ambos: "bg-violet-50 text-violet-700 border-violet-200",
+  };
+  const labels: Record<GuestSide, string> = {
+    novio: "🤵 Novio",
+    novia: "👰 Novia",
+    ambos: "💞 Ambos",
+  };
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${styles[side]}`}
+    >
+      {labels[side]}
+    </span>
+  );
+}
 
 type Stats = {
   total: number;
@@ -178,7 +242,12 @@ export default function AdminPage() {
   const [editGuest, setEditGuest] = useState<Guest | null>(null);
   const [namesGuest, setNamesGuest] = useState<Guest | null>(null);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", seats: "1", phone: "" });
+  const [form, setForm] = useState<{
+    name: string;
+    seats: string;
+    phone: string;
+    side: GuestSide;
+  }>({ name: "", seats: "1", phone: "", side: "ambos" });
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -204,13 +273,18 @@ export default function AdminPage() {
 
   const openAdd = () => {
     setEditGuest(null);
-    setForm({ name: "", seats: "1", phone: "" });
+    setForm({ name: "", seats: "1", phone: "", side: "ambos" });
     setShowModal(true);
   };
 
   const openEdit = (g: Guest) => {
     setEditGuest(g);
-    setForm({ name: g.name, seats: String(g.seats), phone: g.phone ?? "" });
+    setForm({
+      name: g.name,
+      seats: String(g.seats),
+      phone: g.phone ?? "",
+      side: g.side ?? "ambos",
+    });
     setShowModal(true);
   };
 
@@ -225,6 +299,7 @@ export default function AdminPage() {
           name: form.name,
           seats: Number(form.seats),
           phone: form.phone,
+          side: form.side,
         }),
       });
     } else {
@@ -235,6 +310,7 @@ export default function AdminPage() {
           name: form.name,
           seats: Number(form.seats),
           phone: form.phone,
+          side: form.side,
         }),
       });
     }
@@ -247,6 +323,15 @@ export default function AdminPage() {
     if (!confirm(`¿Eliminar a "${name}"?`)) return;
     await fetch(`/api/guests/${id}`, { method: "DELETE" });
     fetchData();
+  };
+
+  const setInviteStatus = async (g: Guest, invite_status: InviteStatus) => {
+    setGuests((gs) => gs.map((x) => (x.id === g.id ? { ...x, invite_status } : x)));
+    await fetch(`/api/guests/${g.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ invite_status }),
+    });
   };
 
   const copyLink = (slug: string) => {
@@ -267,11 +352,15 @@ export default function AdminPage() {
   };
 
   const exportCSV = () => {
-    const header = "Nombre,Lugares,Teléfono,Estado,Confirmado el,Notas";
+    const header = "Nombre,Lugares,Etiqueta,Invitación,Teléfono,Estado,Confirmado el,Notas";
+    const sideLabel: Record<GuestSide, string> = { novio: "Novio", novia: "Novia", ambos: "Ambos" };
+    const inviteLabel: Record<InviteStatus, string> = { pendiente: "Pendiente", enviado: "Enviado", confirmado: "Confirmado" };
     const rows = guests.map((g) =>
       [
         `"${g.name}"`,
         g.seats,
+        sideLabel[g.side ?? "ambos"],
+        inviteLabel[g.invite_status ?? "pendiente"],
         g.phone ?? "",
         g.confirmed === 1 ? "Confirmado" : g.confirmed === 0 ? "No asiste" : "Pendiente",
         g.confirmed_at ?? "",
@@ -367,7 +456,9 @@ export default function AdminPage() {
                 <tr className="text-left text-xs uppercase tracking-wide text-gray-400 border-b border-gray-100">
                   <th className="px-4 py-3 font-medium">Nombre</th>
                   <th className="px-4 py-3 font-medium text-center">Lugares</th>
+                  <th className="px-4 py-3 font-medium">Etiqueta</th>
                   <th className="px-4 py-3 font-medium hidden md:table-cell">Teléfono</th>
+                  <th className="px-4 py-3 font-medium">Invitación</th>
                   <th className="px-4 py-3 font-medium">Estado</th>
                   <th className="px-4 py-3 font-medium hidden lg:table-cell">Confirmó el</th>
                   <th className="px-4 py-3 font-medium text-right">Acciones</th>
@@ -382,8 +473,15 @@ export default function AdminPage() {
                         {g.seats}
                       </span>
                     </td>
+                    <td className="px-4 py-3">{sideBadge(g.side ?? "ambos")}</td>
                     <td className="px-4 py-3 text-gray-500 hidden md:table-cell">
                       {g.phone || <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <InviteStatusBadge
+                        status={g.invite_status ?? "pendiente"}
+                        onSet={(next) => setInviteStatus(g, next)}
+                      />
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
@@ -495,6 +593,27 @@ export default function AdminPage() {
                       }`}
                     >
                       {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Etiqueta
+                </label>
+                <div className="flex items-center gap-2">
+                  {SIDE_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setForm({ ...form, side: opt.value })}
+                      className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        form.side === opt.value
+                          ? "bg-gray-900 text-white"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      }`}
+                    >
+                      {opt.label}
                     </button>
                   ))}
                 </div>

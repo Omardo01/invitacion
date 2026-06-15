@@ -1,16 +1,36 @@
 import { db } from "./db";
 
+export type GuestSide = "novio" | "novia" | "ambos";
+
+export type InviteStatus = "pendiente" | "enviado" | "confirmado";
+
 export type Guest = {
   id: number;
   slug: string;
   name: string;
   seats: number;
   phone: string | null;
+  side: GuestSide;
+  invite_status: InviteStatus;
   confirmed: 1 | 0 | null;
   confirmed_at: string | null;
   notes: string | null;
   created_at: string;
 };
+
+const SIDES: readonly GuestSide[] = ["novio", "novia", "ambos"];
+
+function normalizeSide(value: unknown): GuestSide {
+  return SIDES.includes(value as GuestSide) ? (value as GuestSide) : "ambos";
+}
+
+const INVITE_STATUSES: readonly InviteStatus[] = ["pendiente", "enviado", "confirmado"];
+
+function normalizeInviteStatus(value: unknown): InviteStatus {
+  return INVITE_STATUSES.includes(value as InviteStatus)
+    ? (value as InviteStatus)
+    : "pendiente";
+}
 
 function generateSlug(name: string): string {
   const base = name
@@ -40,12 +60,14 @@ export async function createGuest(data: {
   name: string;
   seats: number;
   phone?: string;
+  side?: GuestSide;
 }): Promise<Guest> {
   const sql = db();
   const slug = generateSlug(data.name);
+  const side = normalizeSide(data.side);
   const rows = (await sql`
-    INSERT INTO guests (slug, name, seats, phone)
-    VALUES (${slug}, ${data.name}, ${data.seats}, ${data.phone ?? null})
+    INSERT INTO guests (slug, name, seats, phone, side)
+    VALUES (${slug}, ${data.name}, ${data.seats}, ${data.phone ?? null}, ${side})
     RETURNING *
   `) as Guest[];
   return rows[0];
@@ -53,7 +75,7 @@ export async function createGuest(data: {
 
 export async function updateGuest(
   id: number,
-  data: { name?: string; seats?: number; phone?: string },
+  data: { name?: string; seats?: number; phone?: string; side?: GuestSide; invite_status?: InviteStatus },
 ): Promise<Guest> {
   const sql = db();
   const fields: string[] = [];
@@ -62,6 +84,8 @@ export async function updateGuest(
   if (data.name !== undefined) { fields.push(`name = $${i++}`); values.push(data.name); }
   if (data.seats !== undefined) { fields.push(`seats = $${i++}`); values.push(data.seats); }
   if (data.phone !== undefined) { fields.push(`phone = $${i++}`); values.push(data.phone || null); }
+  if (data.side !== undefined) { fields.push(`side = $${i++}`); values.push(normalizeSide(data.side)); }
+  if (data.invite_status !== undefined) { fields.push(`invite_status = $${i++}`); values.push(normalizeInviteStatus(data.invite_status)); }
   values.push(id);
   const rows = (await sql.query(
     `UPDATE guests SET ${fields.join(", ")} WHERE id = $${i} RETURNING *`,
@@ -84,7 +108,8 @@ export async function confirmRSVP(
   const now = new Date().toISOString();
   const rows = (await sql`
     UPDATE guests
-    SET confirmed = ${confirmed ? 1 : 0}, confirmed_at = ${now}, notes = ${notes ?? null}
+    SET confirmed = ${confirmed ? 1 : 0}, confirmed_at = ${now}, notes = ${notes ?? null},
+        invite_status = CASE WHEN ${confirmed} THEN 'confirmado' ELSE invite_status END
     WHERE slug = ${slug}
     RETURNING *
   `) as Guest[];

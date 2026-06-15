@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAllGuests, createGuest, getStats } from "@/lib/guests";
+import { getAllGuests, createGuest, getStats, type GuestSide } from "@/lib/guests";
 import { requireAdmin } from "@/lib/auth";
 
 export async function GET() {
@@ -14,10 +14,11 @@ export async function POST(req: Request) {
   const deny = await requireAdmin();
   if (deny) return deny;
   const body = await req.json();
-  const { name, seats, phone } = body as {
+  const { name, seats, phone, side } = body as {
     name: string;
     seats: number;
     phone?: string;
+    side?: GuestSide;
   };
   if (!name || !seats) {
     return NextResponse.json(
@@ -25,6 +26,6 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
-  const guest = await createGuest({ name, seats: Number(seats), phone });
+  const guest = await createGuest({ name, seats: Number(seats), phone, side });
   return NextResponse.json(guest, { status: 201 });
 }
