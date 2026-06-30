@@ -679,7 +679,7 @@ function RSVPModal({ seats, mode, slug, onClose, onConfirmed }: {
               <div className="text-center mb-6">
                 <p className="text-[10px] uppercase tracking-[0.35em] mb-2" style={{ color: C.lilaDeep }}>Confirmación</p>
                 <h3 className="text-4xl" style={{ fontFamily: "var(--font-great-vibes)", color: C.lilaDeep }}>¿Nos acompañas?</h3>
-                <p className="text-sm mt-2" style={{ color: C.mid }}>Tienes <strong style={{ color: C.lilaDeep }}>{seats} {seats === 1 ? "lugar reservado" : "lugares reservados"}</strong>. ¿Cuántos asistirán? Confirma antes del <strong style={{ color: C.lilaDeep }}>{wedding.rsvpDeadline}</strong>.</p>
+                <p className="text-sm mt-2" style={{ color: C.mid }}>Tienes <strong style={{ color: C.lilaDeep }}>{seats} {seats === 1 ? "lugar reservado" : "lugares reservados"}</strong>. ¿Cuántos asistirán?</p>
                 <p className="text-sm mt-1 font-medium" style={{ color: C.lilaDeep }}>Solo para adultos (no niños).</p>
               </div>
 
@@ -1167,8 +1167,8 @@ export default function Invitation33({
                 <SectionTitle kicker="Te esperamos">¿Nos acompañas?</SectionTitle>
                 <p className={mode === "live" ? "mb-3" : "mb-10"} style={{ color: C.mid }}>
                   {mode === "live"
-                    ? <>Tienes <strong style={{ color: C.lilaDeep }}>{seats} {seats === 1 ? "lugar reservado" : "lugares reservados"}</strong>. Confirma antes del <strong style={{ color: C.lilaDeep }}>{wedding.rsvpDeadline}</strong>.</>
-                    : <>Tu respuesta hace este día más nuestro. Confirma antes del <strong style={{ color: C.lilaDeep }}>{wedding.rsvpDeadline}</strong>.</>}
+                    ? <>Tienes <strong style={{ color: C.lilaDeep }}>{seats} {seats === 1 ? "lugar reservado" : "lugares reservados"}</strong>.</>
+                    : <>Tu respuesta hace este día más nuestro.</>}
                 </p>
                 {mode === "live" && (
                   <p className="mb-10 text-base font-medium" style={{ color: C.lilaDeep }}>
