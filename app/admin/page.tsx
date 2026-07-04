@@ -384,6 +384,9 @@ export default function AdminPage() {
   const sideCount = (side: GuestSide) =>
     guests.filter((g) => (g.side ?? "ambos") === side).length;
 
+  const filterActive = search.trim() !== "" || sideFilter !== "todos";
+  const filteredSeats = filtered.reduce((sum, g) => sum + g.seats, 0);
+
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
       {/* Header */}
@@ -402,6 +405,9 @@ export default function AdminPage() {
             </span>
             <Link href="/admin/mesas" className="text-sm px-3 py-1.5 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-colors">
               Mesas
+            </Link>
+            <Link href="/admin/mesas-plan" className="text-sm px-3 py-1.5 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-colors">
+              Plan de mesas
             </Link>
           </nav>
         </div>
@@ -464,7 +470,12 @@ export default function AdminPage() {
                 </button>
               ))}
             </div>
-            <span className="text-xs text-gray-400 sm:ml-1 whitespace-nowrap">{filtered.length} invitados</span>
+            <span className="text-xs text-gray-400 sm:ml-1 whitespace-nowrap">
+              {filtered.length} invitados
+              {filterActive && (
+                <span className="text-gray-600 font-medium"> · {filteredSeats} {filteredSeats === 1 ? "lugar" : "lugares"}</span>
+              )}
+            </span>
           </div>
 
           {loading ? (

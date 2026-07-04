@@ -1,0 +1,43 @@
+// Crea las tablas del plan de mesas ficticio (independiente de tables/attendees).
+// Uso:  node --env-file=.env.local scripts/init-mock-tables.mjs
+import { neon } from "@neondatabase/serverless";
+
+const url = process.env.DATABASE_URL;
+if (!url) {
+  console.error("✗ Falta DATABASE_URL. Córrelo con: node --env-file=.env.local scripts/init-mock-tables.mjs");
+  process.exit(1);
+}
+const sql = neon(url);
+
+/* Mesas ficticias: un sandbox de planeación a nivel invitado (familia completa
+   con sus `seats`), separado del acomodo real por persona en `tables`/`attendees`. */
+await sql`CREATE TABLE IF NOT EXISTS mock_tables (
+  id          SERIAL PRIMARY KEY,
+  name        TEXT NOT NULL,
+  capacity    INTEGER NOT NULL DEFAULT 12,
+  created_at  TEXT NOT NULL DEFAULT (now()::text)
+)`;
+
+/* Cada invitado (familia) puede estar etiquetado en una sola mesa ficticia. */
+await sql`CREATE TABLE IF NOT EXISTS mock_seating (
+  guest_id       INTEGER PRIMARY KEY REFERENCES guests(id) ON DELETE CASCADE,
+  mock_table_id  INTEGER NOT NULL REFERENCES mock_tables(id) ON DELETE CASCADE,
+  created_at     TEXT NOT NULL DEFAULT (now()::text)
+)`;
+
+/* Invitados de logística: existen solo en el plan (staff, proveedores, cortesías)
+   para contar lugares en mesas; no tienen invitación ni RSVP. */
+await sql`CREATE TABLE IF NOT EXISTS mock_guests (
+  id             SERIAL PRIMARY KEY,
+  name           TEXT NOT NULL,
+  seats          INTEGER NOT NULL DEFAULT 1,
+  mock_table_id  INTEGER REFERENCES mock_tables(id) ON DELETE SET NULL,
+  created_at     TEXT NOT NULL DEFAULT (now()::text)
+)`;
+
+/* Posición de cada mesa en el plano del salón (porcentaje 0–100 del lienzo).
+   NULL = aún no acomodada; el plano le asigna un lugar por defecto. */
+await sql`ALTER TABLE mock_tables ADD COLUMN IF NOT EXISTS pos_x REAL`;
+await sql`ALTER TABLE mock_tables ADD COLUMN IF NOT EXISTS pos_y REAL`;
+
+console.log("✓ Esquema listo (mock_tables, mock_seating, mock_guests, pos_x/pos_y)");

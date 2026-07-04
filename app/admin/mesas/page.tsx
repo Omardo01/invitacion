@@ -93,6 +93,9 @@ export default function MesasPage() {
               Invitados
             </Link>
             <span className="text-sm px-3 py-1.5 rounded-lg font-medium bg-gray-900 text-white">Mesas</span>
+            <Link href="/admin/mesas-plan" className="text-sm px-3 py-1.5 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-colors">
+              Plan de mesas
+            </Link>
           </nav>
         </div>
         <button
