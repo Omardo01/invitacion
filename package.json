@@ -8,6 +8,7 @@
     "start": "next start",
     "db:setup": "node --env-file=.env.local scripts/init-db.mjs",
     "db:stamps": "node --env-file=.env.local scripts/init-stamps.mjs",
+    "db:merch": "node --env-file=.env.local scripts/init-merch.mjs",
     "admin:password": "node --env-file=.env.local scripts/set-admin-password.mjs"
   },
   "dependencies": {

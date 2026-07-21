@@ -40,4 +40,16 @@ await sql`CREATE TABLE IF NOT EXISTS mock_guests (
 await sql`ALTER TABLE mock_tables ADD COLUMN IF NOT EXISTS pos_x REAL`;
 await sql`ALTER TABLE mock_tables ADD COLUMN IF NOT EXISTS pos_y REAL`;
 
-console.log("✓ Esquema listo (mock_tables, mock_seating, mock_guests, pos_x/pos_y)");
+/* Estructuras del salón dibujadas en el plano (pilares, mesa de merch, barra,
+   entrada...). Posición del vértice superior izquierdo y tamaño, en % del lienzo. */
+await sql`CREATE TABLE IF NOT EXISTS plan_structures (
+  id          SERIAL PRIMARY KEY,
+  label       TEXT NOT NULL,
+  pos_x       REAL NOT NULL DEFAULT 15,
+  pos_y       REAL NOT NULL DEFAULT 40,
+  w           REAL NOT NULL DEFAULT 10,
+  h           REAL NOT NULL DEFAULT 16,
+  created_at  TEXT NOT NULL DEFAULT (now()::text)
+)`;
+
+console.log("✓ Esquema listo (mock_tables, mock_seating, mock_guests, pos_x/pos_y, plan_structures)");

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, useCallback, useRef } from "react";
 import type { Guest, GuestSide } from "@/lib/guests";
 import type { MockTable, MockSeat, MockGuest } from "@/lib/mock-tables";
+import type { PlanStructure } from "@/lib/structures";
 
 /* misma paleta que el acomodo real, para distinguir familias */
 const FAMILY_COLORS = [
@@ -35,17 +36,22 @@ export default function MesasPlanPage() {
   const [extras, setExtras] = useState<MockGuest[]>([]);
   const [extraForm, setExtraForm] = useState({ name: "", seats: "1" });
   const [addingExtra, setAddingExtra] = useState(false);
+  const [structures, setStructures] = useState<PlanStructure[]>([]);
+  const [showStructForm, setShowStructForm] = useState(false);
+  const [structLabel, setStructLabel] = useState("");
 
   const fetchAll = useCallback(async () => {
-    const [mRes, gRes] = await Promise.all([
+    const [mRes, gRes, sRes] = await Promise.all([
       fetch("/api/mock-tables"),
       fetch("/api/guests"),
+      fetch("/api/structures"),
     ]);
     const mData = await mRes.json();
     setTables(mData.tables ?? []);
     setSeating(mData.seating ?? []);
     setExtras(mData.extras ?? []);
     setGuests((await gRes.json()).guests ?? []);
+    setStructures((await sRes.json()).structures ?? []);
     setLoading(false);
   }, []);
 
@@ -175,6 +181,98 @@ export default function MesasPlanPage() {
     }
   };
 
+  /* ── Estructuras del salón (pilares, merch, barra...) ──
+     Cajas libres en el plano: se arrastran desde el cuerpo y se redimensionan
+     desde la esquina inferior derecha. Todo en % del lienzo. */
+  const addStructure = async () => {
+    const label = structLabel.trim();
+    if (!label) return;
+    // Se van escalonando del lado izquierdo, donde el plano tiene más espacio.
+    const n = structures.length;
+    const res = await fetch("/api/structures", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label, pos_x: 6 + (n % 3) * 6, pos_y: 30 + (n % 4) * 12 }),
+    });
+    const s = await res.json();
+    setStructures((prev) => [...prev, s]);
+    setStructLabel("");
+    setShowStructForm(false);
+  };
+
+  const patchStructure = async (
+    id: number,
+    data: { label?: string; pos_x?: number; pos_y?: number; w?: number; h?: number },
+  ) => {
+    setStructures((prev) => prev.map((s) => (s.id === id ? { ...s, ...data } : s)));
+    await fetch(`/api/structures/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+  };
+
+  const removeStructure = async (s: PlanStructure) => {
+    if (!confirm(`¿Quitar "${s.label}" del plano?`)) return;
+    setStructures((prev) => prev.filter((o) => o.id !== s.id));
+    await fetch(`/api/structures/${s.id}`, { method: "DELETE" });
+  };
+
+  const structAct = useRef<{ id: number; mode: "move" | "resize"; offX: number; offY: number } | null>(null);
+  const structLast = useRef<{ pos_x: number; pos_y: number; w: number; h: number } | null>(null);
+  const [activeStructId, setActiveStructId] = useState<number | null>(null);
+
+  const planoPct = (e: React.PointerEvent) => {
+    const rect = planoRef.current!.getBoundingClientRect();
+    return {
+      x: ((e.clientX - rect.left) / rect.width) * 100,
+      y: ((e.clientY - rect.top) / rect.height) * 100,
+    };
+  };
+
+  const startStruct = (e: React.PointerEvent, s: PlanStructure, mode: "move" | "resize") => {
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    const p = planoPct(e);
+    structAct.current = { id: s.id, mode, offX: p.x - s.pos_x, offY: p.y - s.pos_y };
+    structLast.current = null;
+    setActiveStructId(s.id);
+  };
+  const moveStruct = (e: React.PointerEvent, s: PlanStructure) => {
+    const act = structAct.current;
+    if (!act || act.id !== s.id) return;
+    const p = planoPct(e);
+    const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
+    const next =
+      act.mode === "move"
+        ? {
+            pos_x: clamp(p.x - act.offX, 0, 100 - s.w),
+            pos_y: clamp(p.y - act.offY, 0, 100 - s.h),
+            w: s.w,
+            h: s.h,
+          }
+        : {
+            pos_x: s.pos_x,
+            pos_y: s.pos_y,
+            w: clamp(p.x - s.pos_x, 3, 100 - s.pos_x),
+            h: clamp(p.y - s.pos_y, 4, 100 - s.pos_y),
+          };
+    structLast.current = next;
+    setStructures((prev) => prev.map((o) => (o.id === s.id ? { ...o, ...next } : o)));
+  };
+  const endStruct = (s: PlanStructure) => {
+    const act = structAct.current;
+    if (!act || act.id !== s.id) return;
+    structAct.current = null;
+    setActiveStructId(null);
+    if (structLast.current) {
+      const r = (v: number) => Math.round(v * 10) / 10;
+      const { pos_x, pos_y, w, h } = structLast.current;
+      structLast.current = null;
+      patchStructure(s.id, { pos_x: r(pos_x), pos_y: r(pos_y), w: r(w), h: r(h) });
+    }
+  };
+
   const filteredGuests = guests.filter(
     (g) =>
       g.name.toLowerCase().includes(search.toLowerCase()) &&
@@ -208,6 +306,9 @@ export default function MesasPlanPage() {
               Mesas
             </Link>
             <span className="text-sm px-3 py-1.5 rounded-lg font-medium bg-gray-900 text-white">Plan de mesas</span>
+            <Link href="/admin/merch" className="text-sm px-3 py-1.5 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-colors">
+              Merch
+            </Link>
           </nav>
         </div>
         <button
@@ -375,10 +476,54 @@ export default function MesasPlanPage() {
             {/* Plano del salón: arrastra las mesas para acomodarlas como en tu lugar */}
             {tables.length > 0 && (
               <div className="mb-6">
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
                   <h2 className="text-sm font-semibold text-gray-900">🗺️ Plano del lugar</h2>
-                  <span className="text-[11px] text-gray-400">Arrastra las mesas para acomodarlas como en tu salón</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-gray-400 hidden sm:inline">Arrastra las mesas para acomodarlas como en tu salón</span>
+                    <button
+                      onClick={() => setShowStructForm((v) => !v)}
+                      className="text-xs px-2.5 py-1 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+                    >
+                      + Estructura
+                    </button>
+                  </div>
                 </div>
+                {showStructForm && (
+                  <div className="mb-2 p-3 rounded-xl border border-gray-200 bg-white flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="Nombre de la estructura (ej: Pilar, Merch, Barra...)"
+                        value={structLabel}
+                        onChange={(e) => setStructLabel(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && addStructure()}
+                        autoFocus
+                        className="flex-1 text-sm px-3 py-1.5 rounded-lg border border-gray-200 outline-none focus:border-gray-400 transition-colors"
+                      />
+                      <button
+                        onClick={addStructure}
+                        disabled={!structLabel.trim()}
+                        className="text-sm px-3 py-1.5 rounded-lg bg-gray-900 text-white hover:bg-gray-700 transition-colors font-medium disabled:opacity-50"
+                      >
+                        Agregar
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {["🏛️ Pilar", "🎁 Merch", "🍹 Barra", "🍽️ Buffet", "🎶 DJ", "🚪 Entrada", "📸 Fotos", "🍰 Pastel"].map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => setStructLabel(s)}
+                          className="text-xs px-2 py-0.5 rounded-full border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-gray-400">
+                      La caja aparece en el plano: arrástrala para moverla y estira su esquina inferior derecha para cambiar el tamaño.
+                    </p>
+                  </div>
+                )}
                 <div
                   ref={planoRef}
                   className="relative w-full aspect-[16/10] rounded-xl border-2 border-gray-300 bg-white select-none"
@@ -387,10 +532,53 @@ export default function MesasPlanPage() {
                   <div className="absolute left-1/2 top-[3%] -translate-x-1/2 px-4 py-1.5 rounded-lg border-2 border-gray-800 bg-gray-900 text-white text-xs font-semibold">
                     💍 Novios
                   </div>
-                  {/* Pista (fija, al centro) */}
-                  <div className="absolute left-1/2 top-[30%] -translate-x-1/2 w-[26%] h-[32%] rounded-lg border-2 border-gray-300 bg-gray-50 flex items-center justify-center">
-                    <span className="text-gray-300 font-bold tracking-[0.3em] text-lg sm:text-2xl">PISTA</span>
+                  {/* Pista (fija, cuadrada y ligeramente a la derecha para dejar
+                      más espacio libre del lado izquierdo). En el lienzo 16:10,
+                      h = 1.6 × w hace que se vea como cuadrado real. */}
+                  <div className="absolute left-[56%] top-[32%] -translate-x-1/2 w-[18%] h-[28.8%] rounded-lg border-2 border-gray-300 bg-gray-50 flex items-center justify-center">
+                    <span className="text-gray-300 font-bold tracking-[0.3em] text-sm sm:text-lg">PISTA</span>
                   </div>
+
+                  {/* Estructuras del salón (debajo de las mesas en z-order) */}
+                  {structures.map((s) => (
+                    <div
+                      key={`st-${s.id}`}
+                      onPointerDown={(e) => startStruct(e, s, "move")}
+                      onPointerMove={(e) => moveStruct(e, s)}
+                      onPointerUp={() => endStruct(s)}
+                      onPointerCancel={() => endStruct(s)}
+                      style={{ left: `${s.pos_x}%`, top: `${s.pos_y}%`, width: `${s.w}%`, height: `${s.h}%` }}
+                      className={`absolute group rounded-md border-2 bg-gray-100/90 cursor-grab active:cursor-grabbing touch-none flex items-center justify-center ${
+                        activeStructId === s.id ? "border-purple-400 shadow-lg z-10" : "border-gray-300"
+                      }`}
+                    >
+                      <input
+                        defaultValue={s.label}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onBlur={(e) => {
+                          const v = e.target.value.trim();
+                          if (v && v !== s.label) patchStructure(s.id, { label: v });
+                        }}
+                        className="w-full bg-transparent text-center text-[10px] font-semibold text-gray-500 uppercase tracking-wider outline-none px-1"
+                      />
+                      <button
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={() => removeStructure(s)}
+                        title="Quitar del plano"
+                        className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-white border border-gray-200 text-[10px] items-center justify-center text-red-400 hover:bg-red-50 transition-colors shadow-sm hidden group-hover:flex"
+                      >
+                        ✕
+                      </button>
+                      <span
+                        onPointerDown={(e) => startStruct(e, s, "resize")}
+                        onPointerMove={(e) => moveStruct(e, s)}
+                        onPointerUp={() => endStruct(s)}
+                        onPointerCancel={() => endStruct(s)}
+                        title="Cambiar tamaño"
+                        className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-sm bg-gray-300 border border-white cursor-nwse-resize touch-none opacity-0 group-hover:opacity-100 transition-opacity"
+                      />
+                    </div>
+                  ))}
 
                   {tables.map((t) => {
                     const p = posOf(t);
@@ -410,10 +598,18 @@ export default function MesasPlanPage() {
                         onPointerUp={() => endDrag(t.id)}
                         onPointerCancel={() => endDrag(t.id)}
                         style={{ left: `${p.x}%`, top: `${p.y}%` }}
-                        className={`absolute -translate-x-1/2 -translate-y-1/2 w-[88px] p-1.5 rounded-lg border-2 bg-white shadow-sm cursor-grab active:cursor-grabbing touch-none ${
+                        className={`absolute group/mesa -translate-x-1/2 -translate-y-1/2 w-[88px] p-1.5 rounded-lg border-2 bg-white shadow-sm cursor-grab active:cursor-grabbing touch-none ${
                           draggingId === t.id ? "border-purple-400 shadow-lg z-10" : "border-gray-300"
                         }`}
                       >
+                        <button
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onClick={() => removeTable(t.id)}
+                          title="Eliminar mesa"
+                          className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-white border border-gray-200 text-[10px] items-center justify-center text-red-400 hover:bg-red-50 transition-colors shadow-sm hidden group-hover/mesa:flex z-20"
+                        >
+                          ✕
+                        </button>
                         <p className="text-[10px] font-semibold text-gray-800 break-words text-center leading-tight mb-0.5">{t.name}</p>
                         <p className="text-[9px] text-center mb-1 text-gray-400">
                           {used} {used === 1 ? "lugar" : "lugares"}

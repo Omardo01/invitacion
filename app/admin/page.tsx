@@ -409,6 +409,9 @@ export default function AdminPage() {
             <Link href="/admin/mesas-plan" className="text-sm px-3 py-1.5 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-colors">
               Plan de mesas
             </Link>
+            <Link href="/admin/merch" className="text-sm px-3 py-1.5 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-colors">
+              Merch
+            </Link>
           </nav>
         </div>
         <div className="flex gap-2 flex-wrap">
