@@ -146,7 +146,9 @@ function ItemModal({
   );
 }
 
-/* ── Modal para agregar personas (familia completa o externos) ── */
+/* ── Modal para agregar personas (familia completa, registradas o externos) ── */
+type AddMode = "lista" | "registradas" | "externo";
+
 function AddPeopleModal({
   guests,
   attendees,
@@ -166,17 +168,60 @@ function AddPeopleModal({
   onSaved: () => void;
 }) {
   const toGroup = presetGroup !== undefined;
-  const [mode, setMode] = useState<"lista" | "externo">(toGroup ? "externo" : "lista");
+  // Al agregar a un grupo existente ya no tiene sentido elegir "una familia":
+  // por defecto se buscan personas ya registradas.
+  const [mode, setMode] = useState<AddMode>(toGroup ? "registradas" : "lista");
   const [guestId, setGuestId] = useState("");
   const [groupName, setGroupName] = useState(presetGroup === SIN_GRUPO ? "" : presetGroup ?? "");
   const [names, setNames] = useState<string[]>([""]);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  // Buscador de personas registradas (attendees) de cualquier familia.
+  const [pickerSearch, setPickerSearch] = useState("");
+  const [picked, setPicked] = useState<Set<number>>(new Set());
+
+  const guestById = useMemo(() => new Map(guests.map((g) => [g.id, g])), [guests]);
 
   // Familias que aún no están en el merch (para no duplicarlas al agregarlas).
   const usedGuestIds = new Set(recipients.map((r) => r.guest_id).filter((x) => x !== null));
   const availableGuests = guests.filter((g) => !usedGuestIds.has(g.id));
   const existingGroups = [...new Set(recipients.map(groupOf).filter((g) => g !== SIN_GRUPO))];
+
+  // Personas ya en merch (por familia+nombre) para marcarlas y no duplicar.
+  const alreadyInMerch = useMemo(
+    () =>
+      new Set(
+        recipients.map((r) => `${r.guest_id ?? ""}::${r.name.trim().toLowerCase()}`),
+      ),
+    [recipients],
+  );
+  const attKey = (a: Attendee) => `${a.guest_id}::${a.name.trim().toLowerCase()}`;
+
+  // Attendees visibles en el buscador (filtrados por nombre o familia).
+  const shownAttendees = useMemo(() => {
+    const q = pickerSearch.trim().toLowerCase();
+    return attendees.filter((a) => {
+      const fam = guestById.get(a.guest_id)?.name ?? "";
+      return !q || a.name.toLowerCase().includes(q) || fam.toLowerCase().includes(q);
+    });
+  }, [attendees, pickerSearch, guestById]);
+
+  // Agrupadas por familia para mostrarlas ordenaditas.
+  const attendeesByFamily = useMemo(() => {
+    const map = new Map<number, Attendee[]>();
+    for (const a of shownAttendees) {
+      if (!map.has(a.guest_id)) map.set(a.guest_id, []);
+      map.get(a.guest_id)!.push(a);
+    }
+    return [...map.entries()];
+  }, [shownAttendees]);
+
+  const togglePicked = (id: number) =>
+    setPicked((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
 
   // Al elegir familia: una fila por lugar, con los nombres reales si ya se
   // registraron asistentes; si no, editable con placeholder de la familia.
@@ -196,25 +241,63 @@ function AddPeopleModal({
   const removeNameAt = (i: number) => setNames((ns) => ns.filter((_, j) => j !== i));
 
   const cleanNames = names.map((n) => n.trim()).filter(Boolean);
-  const canSave = cleanNames.length > 0 && (mode === "externo" || guestId !== "");
+  const canSave =
+    mode === "registradas"
+      ? picked.size > 0
+      : cleanNames.length > 0 && (mode === "externo" || guestId !== "");
+  const saveCount = mode === "registradas" ? picked.size : cleanNames.length;
 
   const save = async () => {
     if (!canSave || saving) return;
     setSaving(true);
-    await fetch("/api/merch/recipients", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        guest_id: mode === "lista" ? Number(guestId) : presetGuestId ?? null,
-        group_name: groupName,
-        names: cleanNames,
-        notes,
-      }),
-    });
+    if (mode === "registradas") {
+      // Cada persona conserva su familia (guest_id). El grupo: si estamos
+      // agregando a un grupo existente, ese; si no, el que escriba el usuario, y
+      // si lo deja vacío, la familia de cada quien.
+      const override = groupName.trim();
+      const groupFor = (a: Attendee) =>
+        toGroup
+          ? presetGroup === SIN_GRUPO
+            ? null
+            : presetGroup ?? null
+          : override || guestById.get(a.guest_id)?.name || null;
+      const people = attendees
+        .filter((a) => picked.has(a.id))
+        .map((a) => ({ guest_id: a.guest_id, name: a.name, group_name: groupFor(a) }));
+      await fetch("/api/merch/recipients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ people, notes }),
+      });
+    } else {
+      await fetch("/api/merch/recipients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          guest_id: mode === "lista" ? Number(guestId) : presetGuestId ?? null,
+          group_name: groupName,
+          names: cleanNames,
+          notes,
+        }),
+      });
+    }
     setSaving(false);
     onSaved();
     onClose();
   };
+
+  const modeOptions = (
+    toGroup
+      ? [
+          { value: "registradas", label: "👤 Registrados" },
+          { value: "externo", label: "✍️ Nombre libre" },
+        ]
+      : [
+          { value: "lista", label: "👨‍👩‍👧 Familia" },
+          { value: "registradas", label: "👤 Registrados" },
+          { value: "externo", label: "✍️ Libre" },
+        ]
+  ) as { value: AddMode; label: string }[];
 
   return (
     <div
@@ -226,26 +309,21 @@ function AddPeopleModal({
           {toGroup ? `Agregar persona a «${presetGroup}»` : "Agregar a merch"}
         </h2>
 
-        {!toGroup && (
-          <div className="flex items-center gap-2 mb-4">
-            {([
-              { value: "lista", label: "👨‍👩‍👧 Familia invitada" },
-              { value: "externo", label: "✍️ Nombre libre" },
-            ] as const).map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => setMode(opt.value)}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  mode === opt.value
-                    ? "bg-gray-900 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="flex items-center gap-2 mb-4">
+          {modeOptions.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setMode(opt.value)}
+              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+                mode === opt.value
+                  ? "bg-gray-900 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
 
         <div className="space-y-4">
           {mode === "lista" && (
@@ -271,13 +349,82 @@ function AddPeopleModal({
             </div>
           )}
 
-          {!toGroup && (mode === "externo" || guestId !== "") && (
+          {/* ── Buscador de personas ya registradas (de cualquier familia) ── */}
+          {mode === "registradas" && (
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Personas registradas ({picked.size} elegidas)
+              </label>
+              <input
+                type="text"
+                placeholder="Buscar por nombre o familia..."
+                value={pickerSearch}
+                onChange={(e) => setPickerSearch(e.target.value)}
+                className="w-full px-3 py-2 mb-2 rounded-lg border border-gray-200 text-sm outline-none focus:border-gray-400 transition-colors"
+              />
+              {attendees.length === 0 ? (
+                <p className="text-xs text-amber-600 py-2">
+                  Aún no hay nombres registrados. Regístralos en Invitados (👤) al confirmar RSVP.
+                </p>
+              ) : attendeesByFamily.length === 0 ? (
+                <p className="text-xs text-gray-400 py-2 text-center">Sin resultados.</p>
+              ) : (
+                <div className="max-h-64 overflow-y-auto pr-1 space-y-3 border border-gray-100 rounded-lg p-2">
+                  {attendeesByFamily.map(([gid, people]) => (
+                    <div key={gid}>
+                      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide px-1 mb-1">
+                        {guestById.get(gid)?.name ?? "Sin familia"}
+                      </p>
+                      <div className="space-y-0.5">
+                        {people.map((a) => {
+                          const dup = alreadyInMerch.has(attKey(a));
+                          const on = picked.has(a.id);
+                          return (
+                            <button
+                              key={a.id}
+                              onClick={() => !dup && togglePicked(a.id)}
+                              disabled={dup}
+                              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-sm transition-colors ${
+                                dup
+                                  ? "opacity-50 cursor-not-allowed"
+                                  : on
+                                    ? "bg-purple-50 text-purple-800"
+                                    : "hover:bg-gray-50 text-gray-700"
+                              }`}
+                            >
+                              <span
+                                className={`w-4 h-4 rounded border flex items-center justify-center text-[10px] shrink-0 ${
+                                  on
+                                    ? "bg-purple-600 border-purple-600 text-white"
+                                    : "border-gray-300 text-transparent"
+                                }`}
+                              >
+                                ✓
+                              </span>
+                              <span className="flex-1 truncate">{a.name}</span>
+                              {dup && <span className="text-[10px] text-gray-400">ya en merch</span>}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Grupo destino: para modo libre o para agrupar a las registradas.
+              (Al agregar a un grupo existente ya está definido, no se pide.) */}
+          {!toGroup && (mode === "externo" || mode === "registradas" || guestId !== "") && (
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Grupo</label>
               <input
                 type="text"
                 list="merch-groups"
-                placeholder="Ej: Familia García, Staff, DJ..."
+                placeholder={
+                  mode === "registradas" ? "Vacío = la familia de cada quien" : "Ej: Familia García, Staff, DJ..."
+                }
                 value={groupName}
                 onChange={(e) => setGroupName(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm outline-none focus:border-gray-400 transition-colors"
@@ -288,12 +435,14 @@ function AddPeopleModal({
                 ))}
               </datalist>
               <p className="text-xs text-gray-400 mt-1">
-                Los paquetes se ven agrupados por esto. Puedes reutilizar un grupo existente.
+                {mode === "registradas"
+                  ? "Si lo dejas vacío, cada persona se agrupa bajo su familia."
+                  : "Los paquetes se ven agrupados por esto. Puedes reutilizar un grupo existente."}
               </p>
             </div>
           )}
 
-          {(mode === "externo" || guestId !== "") && (
+          {(mode === "externo" || (mode === "lista" && guestId !== "")) && (
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">
                 Personas ({cleanNames.length})
@@ -360,8 +509,8 @@ function AddPeopleModal({
           >
             {saving
               ? "Guardando..."
-              : cleanNames.length > 1
-                ? `Agregar ${cleanNames.length} personas`
+              : saveCount > 1
+                ? `Agregar ${saveCount} personas`
                 : "Agregar"}
           </button>
         </div>
@@ -695,6 +844,24 @@ export default function MerchAdminPage() {
     fetchData();
   };
 
+  const deleteGroup = async (groupName: string, members: MerchRecipient[]) => {
+    if (members.length === 0) return;
+    if (
+      !confirm(
+        `¿Eliminar el grupo «${groupName}» del merch?\n\n` +
+          `Se quitan sus ${members.length} ${members.length === 1 ? "persona" : "personas"} y se desarman sus paquetes. ` +
+          `No afecta al inventario ni a la lista de invitados.`,
+      )
+    )
+      return;
+    const ids = new Set(members.map((m) => m.id));
+    setRecipients((rs) => rs.filter((x) => !ids.has(x.id)));
+    await Promise.all(
+      members.map((m) => fetch(`/api/merch/recipients/${m.id}`, { method: "DELETE" })),
+    );
+    fetchData();
+  };
+
   const deleteItem = async (item: MerchItem) => {
     if (
       !confirm(
@@ -746,6 +913,12 @@ export default function MerchAdminPage() {
               className="text-sm px-3 py-1.5 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-colors"
             >
               Invitados
+            </Link>
+            <Link
+              href="/admin/nombres"
+              className="text-sm px-3 py-1.5 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              Nombres
             </Link>
             <Link
               href="/admin/mesas"
@@ -955,6 +1128,13 @@ export default function MerchAdminPage() {
                         Entregar todo
                       </button>
                     )}
+                    <button
+                      onClick={() => deleteGroup(groupName, members)}
+                      title="Eliminar el grupo completo del merch"
+                      className="p-1 rounded-md text-red-300 hover:bg-red-50 hover:text-red-500 transition-colors text-sm shrink-0"
+                    >
+                      🗑️
+                    </button>
                   </div>
                   <div className="divide-y divide-gray-50">
                     {members.map((r) => (

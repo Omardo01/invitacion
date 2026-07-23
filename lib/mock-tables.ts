@@ -18,6 +18,13 @@ export type MockSeat = {
   mock_table_id: number;
 };
 
+/* Acomodo por persona en el plan (sandbox): en qué mesa ficticia está sentado
+   cada asistente registrado. Copia editable, no toca el acomodo real. */
+export type MockAttendeeSeat = {
+  attendee_id: number;
+  mock_table_id: number;
+};
+
 /* Invitado de logística: existe solo en el plan (staff, proveedores, cortesías),
    sin invitación ni RSVP; sirve para contar lugares en las mesas. */
 export type MockGuest = {
@@ -127,4 +134,87 @@ export async function assignGuestToMockTable(
       ON CONFLICT (guest_id) DO UPDATE SET mock_table_id = EXCLUDED.mock_table_id
     `;
   }
+}
+
+/* ── Acomodo por persona (sandbox del plan) ── */
+
+export async function getMockAttendeeSeating(): Promise<MockAttendeeSeat[]> {
+  const sql = db();
+  return (await sql`
+    SELECT attendee_id, mock_table_id FROM mock_attendee_seating
+  `) as MockAttendeeSeat[];
+}
+
+/* Sienta (o levanta con null) a una persona en una mesa ficticia del plan. */
+export async function assignAttendeeToMockTable(
+  attendeeId: number,
+  mockTableId: number | null,
+): Promise<void> {
+  const sql = db();
+  if (mockTableId === null) {
+    await sql`DELETE FROM mock_attendee_seating WHERE attendee_id = ${attendeeId}`;
+  } else {
+    await sql`
+      INSERT INTO mock_attendee_seating (attendee_id, mock_table_id)
+      VALUES (${attendeeId}, ${mockTableId})
+      ON CONFLICT (attendee_id) DO UPDATE SET mock_table_id = EXCLUDED.mock_table_id
+    `;
+  }
+}
+
+/* Copia el acomodo real (tables/attendees) al sandbox por persona del plan.
+   - Reutiliza las mesas ficticias que coincidan por nombre con las reales; crea
+     las que falten (mismo nombre y capacidad) para no perder el plano existente.
+   - Reemplaza por completo el acomodo por persona previo del plan.
+   No toca el acomodo real ni el modo por familia. */
+export async function importRealSeatingToPlan(): Promise<{
+  people: number;
+  tablesCreated: number;
+  tablesTotal: number;
+}> {
+  const sql = db();
+  const realTables = (await sql`
+    SELECT id, name, capacity FROM tables ORDER BY id ASC
+  `) as { id: number; name: string; capacity: number }[];
+  const mockTables = (await sql`SELECT id, name FROM mock_tables`) as {
+    id: number;
+    name: string;
+  }[];
+
+  const mockByName = new Map(mockTables.map((t) => [t.name.trim().toLowerCase(), t.id]));
+  const realToMock = new Map<number, number>();
+  let tablesCreated = 0;
+  for (const rt of realTables) {
+    const key = rt.name.trim().toLowerCase();
+    let mockId = mockByName.get(key);
+    if (mockId === undefined) {
+      const rows = (await sql`
+        INSERT INTO mock_tables (name, capacity) VALUES (${rt.name}, ${rt.capacity}) RETURNING id
+      `) as { id: number }[];
+      mockId = rows[0].id;
+      mockByName.set(key, mockId);
+      tablesCreated++;
+    }
+    realToMock.set(rt.id, mockId);
+  }
+
+  const seated = (await sql`
+    SELECT id, table_id FROM attendees WHERE table_id IS NOT NULL
+  `) as { id: number; table_id: number }[];
+
+  // Reemplaza el sandbox por persona con el acomodo real.
+  await sql`DELETE FROM mock_attendee_seating`;
+  let people = 0;
+  for (const a of seated) {
+    const mockId = realToMock.get(a.table_id);
+    if (mockId === undefined) continue;
+    await sql`
+      INSERT INTO mock_attendee_seating (attendee_id, mock_table_id)
+      VALUES (${a.id}, ${mockId})
+      ON CONFLICT (attendee_id) DO UPDATE SET mock_table_id = EXCLUDED.mock_table_id
+    `;
+    people++;
+  }
+
+  return { people, tablesCreated, tablesTotal: realTables.length };
 }

@@ -115,6 +115,26 @@ export async function createRecipients(data: {
   }
 }
 
+/** Alta de varias personas, cada una con su propia familia y grupo.
+   Sirve para tomar nombres ya registrados (attendees) de familias distintas
+   y meterlos juntos al merch en una sola operación. */
+export async function createRecipientsBulk(
+  people: { guest_id?: number | null; name: string; group_name?: string | null }[],
+  notes?: string,
+): Promise<void> {
+  const sql = db();
+  const cleanNotes = notes?.trim() || null;
+  for (const p of people) {
+    const name = p.name?.trim();
+    if (!name) continue;
+    const group = p.group_name?.trim() || null;
+    await sql`
+      INSERT INTO merch_recipients (guest_id, name, group_name, notes)
+      VALUES (${p.guest_id ?? null}, ${name}, ${group}, ${cleanNotes})
+    `;
+  }
+}
+
 export async function updateRecipient(
   id: number,
   data: {

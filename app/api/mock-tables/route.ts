@@ -1,16 +1,23 @@
 import { NextResponse } from "next/server";
-import { getAllMockTables, getMockSeating, getAllMockGuests, createMockTable } from "@/lib/mock-tables";
+import {
+  getAllMockTables,
+  getMockSeating,
+  getAllMockGuests,
+  getMockAttendeeSeating,
+  createMockTable,
+} from "@/lib/mock-tables";
 import { requireAdmin } from "@/lib/auth";
 
 export async function GET() {
   const deny = await requireAdmin();
   if (deny) return deny;
-  const [tables, seating, extras] = await Promise.all([
+  const [tables, seating, extras, attendeeSeating] = await Promise.all([
     getAllMockTables(),
     getMockSeating(),
     getAllMockGuests(),
+    getMockAttendeeSeating(),
   ]);
-  return NextResponse.json({ tables, seating, extras });
+  return NextResponse.json({ tables, seating, extras, attendeeSeating });
 }
 
 export async function POST(req: Request) {

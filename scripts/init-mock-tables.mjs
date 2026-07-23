@@ -52,4 +52,14 @@ await sql`CREATE TABLE IF NOT EXISTS plan_structures (
   created_at  TEXT NOT NULL DEFAULT (now()::text)
 )`;
 
-console.log("✓ Esquema listo (mock_tables, mock_seating, mock_guests, pos_x/pos_y, plan_structures)");
+/* Acomodo por PERSONA en el plan (sandbox): copia editable, independiente del
+   acomodo real por persona (attendees.table_id) y del modo por familia
+   (mock_seating). Cada asistente registrado puede estar en una sola mesa
+   ficticia. Se llena con el botón "Importar de Mesas" o arrastrando a mano. */
+await sql`CREATE TABLE IF NOT EXISTS mock_attendee_seating (
+  attendee_id    INTEGER PRIMARY KEY REFERENCES attendees(id) ON DELETE CASCADE,
+  mock_table_id  INTEGER NOT NULL REFERENCES mock_tables(id) ON DELETE CASCADE,
+  created_at     TEXT NOT NULL DEFAULT (now()::text)
+)`;
+
+console.log("✓ Esquema listo (mock_tables, mock_seating, mock_guests, mock_attendee_seating, pos_x/pos_y, plan_structures)");

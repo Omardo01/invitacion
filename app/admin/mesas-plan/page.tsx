@@ -3,8 +3,11 @@
 import Link from "next/link";
 import { useEffect, useState, useCallback, useRef } from "react";
 import type { Guest, GuestSide } from "@/lib/guests";
-import type { MockTable, MockSeat, MockGuest } from "@/lib/mock-tables";
+import type { Attendee } from "@/lib/attendees";
+import type { MockTable, MockSeat, MockGuest, MockAttendeeSeat } from "@/lib/mock-tables";
 import type { PlanStructure } from "@/lib/structures";
+
+type PlanMode = "familia" | "persona";
 
 /* misma paleta que el acomodo real, para distinguir familias */
 const FAMILY_COLORS = [
@@ -29,6 +32,7 @@ export default function MesasPlanPage() {
   const [tables, setTables] = useState<MockTable[]>([]);
   const [seating, setSeating] = useState<MockSeat[]>([]);
   const [guests, setGuests] = useState<Guest[]>([]);
+  const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [onlyUnassigned, setOnlyUnassigned] = useState(false);
@@ -39,19 +43,27 @@ export default function MesasPlanPage() {
   const [structures, setStructures] = useState<PlanStructure[]>([]);
   const [showStructForm, setShowStructForm] = useState(false);
   const [structLabel, setStructLabel] = useState("");
+  // Acomodo por persona (sandbox): copia editable, aparte del modo por familia.
+  const [planMode, setPlanMode] = useState<PlanMode>("familia");
+  const [attendeeSeating, setAttendeeSeating] = useState<MockAttendeeSeat[]>([]);
+  const [importing, setImporting] = useState(false);
+  const [dragAtt, setDragAtt] = useState<number | null>(null);
 
   const fetchAll = useCallback(async () => {
-    const [mRes, gRes, sRes] = await Promise.all([
+    const [mRes, gRes, sRes, aRes] = await Promise.all([
       fetch("/api/mock-tables"),
       fetch("/api/guests"),
       fetch("/api/structures"),
+      fetch("/api/attendees"),
     ]);
     const mData = await mRes.json();
     setTables(mData.tables ?? []);
     setSeating(mData.seating ?? []);
     setExtras(mData.extras ?? []);
+    setAttendeeSeating(mData.attendeeSeating ?? []);
     setGuests((await gRes.json()).guests ?? []);
     setStructures((await sRes.json()).structures ?? []);
+    setAttendees((await aRes.json()).attendees ?? []);
     setLoading(false);
   }, []);
 
@@ -59,6 +71,16 @@ export default function MesasPlanPage() {
 
   const guestColor = (id: number) =>
     FAMILY_COLORS[guests.findIndex((g) => g.id === id) % FAMILY_COLORS.length] ?? "#8a6cb8";
+  /* nombres individuales ya registrados de una familia (mismos que en Mesas) */
+  const namesOf = (guestId: number) =>
+    attendees.filter((a) => a.guest_id === guestId).map((a) => a.name);
+  /* etiqueta del lugar #idx de una familia: el nombre real si está registrado,
+     si no, la familia con el número de lugar */
+  const seatLabel = (g: Guest, idx: number) => {
+    const regs = namesOf(g.id);
+    return regs[idx] ?? `${g.name} · lugar ${idx + 1}`;
+  };
+  const guestOf = (id: number) => guests.find((g) => g.id === id);
   const tableOf = (guestId: number) =>
     seating.find((s) => s.guest_id === guestId)?.mock_table_id ?? null;
   const guestsAt = (tableId: number) =>
@@ -69,9 +91,40 @@ export default function MesasPlanPage() {
   const extrasAt = (tableId: number) => extras.filter((x) => x.mock_table_id === tableId);
   const extraColor = (id: number) =>
     FAMILY_COLORS[(guests.length + extras.findIndex((x) => x.id === id)) % FAMILY_COLORS.length] ?? "#64748b";
+
+  /* ── Acomodo por persona (sandbox) ── */
+  const attTableOf = (attendeeId: number) =>
+    attendeeSeating.find((s) => s.attendee_id === attendeeId)?.mock_table_id ?? null;
+  const attendeesAt = (tableId: number) =>
+    attendeeSeating
+      .filter((s) => s.mock_table_id === tableId)
+      .map((s) => attendees.find((a) => a.id === s.attendee_id))
+      .filter((a): a is Attendee => a !== undefined);
+
   const seatsUsed = (tableId: number) =>
-    guestsAt(tableId).reduce((sum, g) => sum + g.seats, 0) +
+    (planMode === "persona"
+      ? attendeesAt(tableId).length
+      : guestsAt(tableId).reduce((sum, g) => sum + g.seats, 0)) +
     extrasAt(tableId).reduce((sum, x) => sum + x.seats, 0);
+
+  /* Una figura por lugar ocupado de una mesa, según el modo activo.
+     kind: fam = lugar de una familia · att = persona · extra = logística. */
+  type Square = { color: string; side: SeatSide; name: string; kind: "fam" | "att" | "extra"; id: number };
+  const squaresAt = (tableId: number): Square[] => {
+    const out: Square[] = [];
+    if (planMode === "persona") {
+      for (const a of attendeesAt(tableId))
+        out.push({ color: guestColor(a.guest_id), side: guestOf(a.guest_id)?.side ?? "ambos", name: a.name, kind: "att", id: a.id });
+    } else {
+      for (const g of guestsAt(tableId))
+        for (let s = 0; s < g.seats; s++)
+          out.push({ color: guestColor(g.id), side: g.side ?? "ambos", name: seatLabel(g, s), kind: "fam", id: g.id });
+    }
+    for (const x of extrasAt(tableId))
+      for (let s = 0; s < x.seats; s++)
+        out.push({ color: extraColor(x.id), side: "extra", name: `📋 ${x.name}`, kind: "extra", id: x.id });
+    return out;
+  };
 
   /* etiquetar invitado a una mesa (o quitar con null) — optimista */
   const assign = async (guestId: number, tableId: number | null) => {
@@ -84,6 +137,43 @@ export default function MesasPlanPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ guest_id: guestId, mock_table_id: tableId }),
     }).catch(() => fetchAll());
+  };
+
+  /* sentar/levantar a una persona en el sandbox por persona — optimista */
+  const assignAttendee = async (attendeeId: number, tableId: number | null) => {
+    setAttendeeSeating((prev) => {
+      const rest = prev.filter((s) => s.attendee_id !== attendeeId);
+      return tableId === null ? rest : [...rest, { attendee_id: attendeeId, mock_table_id: tableId }];
+    });
+    await fetch("/api/mock-tables/assign-attendee", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ attendee_id: attendeeId, mock_table_id: tableId }),
+    }).catch(() => fetchAll());
+  };
+
+  /* Copia el acomodo real de Mesas al sandbox por persona (con confirmación). */
+  const importFromReal = async () => {
+    if (importing) return;
+    if (
+      !confirm(
+        "Importar el acomodo REAL de Mesas al plan por persona.\n\n" +
+          "• Reemplaza lo que tengas en el plan por persona.\n" +
+          "• NO toca el acomodo real de Mesas ni el modo por familia.\n\n¿Continuar?",
+      )
+    )
+      return;
+    setImporting(true);
+    const res = await fetch("/api/mock-tables/import", { method: "POST" });
+    const data = await res.json().catch(() => ({}));
+    await fetchAll();
+    setImporting(false);
+    setPlanMode("persona");
+    if (data?.ok)
+      alert(
+        `Importado: ${data.people} personas` +
+          `${data.tablesCreated ? ` · ${data.tablesCreated} mesas nuevas en el plan` : ""}.`,
+      );
   };
 
   /* invitados de logística: solo existen en el plan, sin invitación */
@@ -280,14 +370,32 @@ export default function MesasPlanPage() {
       (!onlyUnassigned || tableOf(g.id) === null)
   );
 
+  // Personas (attendees) para el modo por persona, con la familia a la vista.
+  const filteredPeople = attendees.filter((a) => {
+    const g = guestOf(a.guest_id);
+    const q = search.toLowerCase();
+    return (
+      (a.name.toLowerCase().includes(q) || (g?.name.toLowerCase().includes(q) ?? false)) &&
+      (sideFilter === "todos" || (g?.side ?? "ambos") === sideFilter) &&
+      (!onlyUnassigned || attTableOf(a.id) === null)
+    );
+  });
+
   const sideCount = (side: GuestSide) =>
-    guests.filter((g) => (g.side ?? "ambos") === side).length;
+    planMode === "persona"
+      ? attendees.filter((a) => (guestOf(a.guest_id)?.side ?? "ambos") === side).length
+      : guests.filter((g) => (g.side ?? "ambos") === side).length;
 
   const assignedSeats =
-    seating.reduce((sum, s) => sum + (guests.find((g) => g.id === s.guest_id)?.seats ?? 0), 0) +
+    (planMode === "persona"
+      ? attendeeSeating.length
+      : seating.reduce((sum, s) => sum + (guests.find((g) => g.id === s.guest_id)?.seats ?? 0), 0)) +
     extras.reduce((sum, x) => sum + (x.mock_table_id !== null ? x.seats : 0), 0);
   const totalSeats =
-    guests.reduce((sum, g) => sum + g.seats, 0) + extras.reduce((sum, x) => sum + x.seats, 0);
+    (planMode === "persona"
+      ? attendees.length
+      : guests.reduce((sum, g) => sum + g.seats, 0)) +
+    extras.reduce((sum, x) => sum + x.seats, 0);
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans">
@@ -302,6 +410,9 @@ export default function MesasPlanPage() {
             <Link href="/admin" className="text-sm px-3 py-1.5 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-colors">
               Invitados
             </Link>
+            <Link href="/admin/nombres" className="text-sm px-3 py-1.5 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-colors">
+              Nombres
+            </Link>
             <Link href="/admin/mesas" className="text-sm px-3 py-1.5 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-colors">
               Mesas
             </Link>
@@ -311,12 +422,31 @@ export default function MesasPlanPage() {
             </Link>
           </nav>
         </div>
-        <button
-          onClick={addTable}
-          className="text-sm px-4 py-1.5 rounded-lg bg-gray-900 text-white hover:bg-gray-700 transition-colors font-medium"
-        >
-          + Agregar mesa
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Interruptor de modo: por familia (original) o por persona (sandbox). */}
+          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+            {([
+              { value: "familia", label: "👨‍👩‍👧 Por familia" },
+              { value: "persona", label: "👤 Por persona" },
+            ] as const).map((m) => (
+              <button
+                key={m.value}
+                onClick={() => setPlanMode(m.value)}
+                className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${
+                  planMode === m.value ? "bg-gray-900 text-white" : "text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={addTable}
+            className="text-sm px-4 py-1.5 rounded-lg bg-gray-900 text-white hover:bg-gray-700 transition-colors font-medium"
+          >
+            + Agregar mesa
+          </button>
+        </div>
       </header>
 
       {loading ? (
@@ -326,19 +456,33 @@ export default function MesasPlanPage() {
           {/* Panel · Lista de invitados para taguear */}
           <aside className="rounded-xl border border-gray-200 bg-white p-4 h-fit lg:sticky lg:top-6">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-gray-900">Invitados</h2>
-              <span className="text-xs text-gray-400">{filteredGuests.length}</span>
+              <h2 className="text-sm font-semibold text-gray-900">
+                {planMode === "persona" ? "Personas" : "Invitados"}
+              </h2>
+              <span className="text-xs text-gray-400">
+                {planMode === "persona" ? filteredPeople.length : filteredGuests.length}
+              </span>
             </div>
+            {planMode === "persona" && (
+              <button
+                onClick={importFromReal}
+                disabled={importing}
+                className="w-full mb-2 text-xs px-3 py-2 rounded-lg bg-purple-600 text-white font-medium hover:bg-purple-700 transition-colors disabled:opacity-50"
+                title="Copiar el acomodo real de Mesas al plan por persona"
+              >
+                {importing ? "Importando..." : "⬇️ Importar acomodo de Mesas"}
+              </button>
+            )}
             <input
               type="text"
-              placeholder="Buscar familia..."
+              placeholder={planMode === "persona" ? "Buscar persona o familia..." : "Buscar familia..."}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full text-sm px-3 py-1.5 mb-2 rounded-lg border border-gray-200 outline-none focus:border-gray-400 transition-colors"
             />
             <div className="flex items-center gap-1.5 flex-wrap mb-2">
               {([
-                { value: "todos", label: "Todos", count: guests.length },
+                { value: "todos", label: "Todos", count: planMode === "persona" ? attendees.length : guests.length },
                 { value: "novio", label: "🤵 Novio", count: sideCount("novio") },
                 { value: "novia", label: "👰 Novia", count: sideCount("novia") },
                 { value: "ambos", label: "💞 Ambos", count: sideCount("ambos") },
@@ -365,32 +509,80 @@ export default function MesasPlanPage() {
               />
               Solo sin mesa
             </label>
-            <div className="space-y-1.5 max-h-[60vh] overflow-y-auto pr-1">
-              {filteredGuests.map((g) => (
-                <div key={g.id} className="flex items-center gap-2 px-2.5 py-2 rounded-lg border border-gray-100 bg-white">
-                  <SeatShape side={g.side ?? "ambos"} color={guestColor(g.id)} size={10} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-800 break-words leading-tight">{g.name}</p>
-                    <p className="text-[10px] text-gray-400">{g.seats} {g.seats === 1 ? "lugar" : "lugares"}</p>
-                  </div>
-                  <select
-                    value={tableOf(g.id) ?? ""}
-                    onChange={(e) => assign(g.id, e.target.value === "" ? null : Number(e.target.value))}
-                    className={`text-xs px-1.5 py-1 rounded-lg border outline-none max-w-[110px] transition-colors ${
-                      tableOf(g.id) === null
-                        ? "border-gray-200 text-gray-400 bg-gray-50"
-                        : "border-gray-300 text-gray-800 bg-white font-medium"
-                    }`}
-                  >
-                    <option value="">Sin mesa</option>
-                    {tables.map((t) => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
-                  </select>
-                </div>
-              ))}
-              {filteredGuests.length === 0 && (
-                <p className="text-xs text-gray-400 text-center py-6">Sin resultados.</p>
+            <div
+              className="space-y-1.5 max-h-[60vh] overflow-y-auto pr-1"
+              onDragOver={(e) => { if (planMode === "persona" && dragAtt !== null) e.preventDefault(); }}
+              onDrop={(e) => {
+                if (planMode !== "persona") return;
+                e.preventDefault();
+                const id = Number(e.dataTransfer.getData("text/plain"));
+                if (id) assignAttendee(id, null);
+                setDragAtt(null);
+              }}
+            >
+              {planMode === "persona"
+                ? filteredPeople.map((a) => {
+                    const g = guestOf(a.guest_id);
+                    const seated = attTableOf(a.id);
+                    return (
+                      <div
+                        key={a.id}
+                        draggable
+                        onDragStart={(e) => { e.dataTransfer.setData("text/plain", String(a.id)); setDragAtt(a.id); }}
+                        onDragEnd={() => setDragAtt(null)}
+                        className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border border-gray-100 bg-white cursor-grab active:cursor-grabbing ${dragAtt === a.id ? "opacity-40" : ""}`}
+                      >
+                        <SeatShape side={g?.side ?? "ambos"} color={guestColor(a.guest_id)} size={10} />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm text-gray-800 break-words leading-tight">{a.name}</p>
+                          <p className="text-[10px] text-gray-400 truncate">{g?.name ?? "—"}</p>
+                        </div>
+                        <select
+                          value={seated ?? ""}
+                          onChange={(e) => assignAttendee(a.id, e.target.value === "" ? null : Number(e.target.value))}
+                          className={`text-xs px-1.5 py-1 rounded-lg border outline-none max-w-[110px] transition-colors ${
+                            seated === null
+                              ? "border-gray-200 text-gray-400 bg-gray-50"
+                              : "border-gray-300 text-gray-800 bg-white font-medium"
+                          }`}
+                        >
+                          <option value="">Sin mesa</option>
+                          {tables.map((t) => (
+                            <option key={t.id} value={t.id}>{t.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    );
+                  })
+                : filteredGuests.map((g) => (
+                    <div key={g.id} className="flex items-center gap-2 px-2.5 py-2 rounded-lg border border-gray-100 bg-white">
+                      <SeatShape side={g.side ?? "ambos"} color={guestColor(g.id)} size={10} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-gray-800 break-words leading-tight">{g.name}</p>
+                        <p className="text-[10px] text-gray-400">{g.seats} {g.seats === 1 ? "lugar" : "lugares"}</p>
+                      </div>
+                      <select
+                        value={tableOf(g.id) ?? ""}
+                        onChange={(e) => assign(g.id, e.target.value === "" ? null : Number(e.target.value))}
+                        className={`text-xs px-1.5 py-1 rounded-lg border outline-none max-w-[110px] transition-colors ${
+                          tableOf(g.id) === null
+                            ? "border-gray-200 text-gray-400 bg-gray-50"
+                            : "border-gray-300 text-gray-800 bg-white font-medium"
+                        }`}
+                      >
+                        <option value="">Sin mesa</option>
+                        {tables.map((t) => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+              {(planMode === "persona" ? filteredPeople.length === 0 : filteredGuests.length === 0) && (
+                <p className="text-xs text-gray-400 text-center py-6">
+                  {planMode === "persona" && attendees.length === 0
+                    ? "No hay personas registradas. Regístralas en Invitados (👤) o usa «Importar acomodo de Mesas»."
+                    : "Sin resultados."}
+                </p>
               )}
             </div>
 
@@ -479,7 +671,11 @@ export default function MesasPlanPage() {
                 <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
                   <h2 className="text-sm font-semibold text-gray-900">🗺️ Plano del lugar</h2>
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-gray-400 hidden sm:inline">Arrastra las mesas para acomodarlas como en tu salón</span>
+                    <span className="text-[11px] text-gray-400 hidden sm:inline">
+                      {planMode === "persona"
+                        ? "Arrastra personas a una mesa · arrastra las mesas para acomodarlas"
+                        : "Arrastra las mesas para acomodarlas como en tu salón"}
+                    </span>
                     <button
                       onClick={() => setShowStructForm((v) => !v)}
                       className="text-xs px-2.5 py-1 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
@@ -583,13 +779,8 @@ export default function MesasPlanPage() {
                   {tables.map((t) => {
                     const p = posOf(t);
                     const used = seatsUsed(t.id);
-                    const tFam = guestsAt(t.id);
-                    const tExt = extrasAt(t.id);
-                    const miniSquares: { color: string; side: SeatSide; name: string }[] = [];
-                    for (const g of tFam)
-                      for (let s = 0; s < g.seats; s++) miniSquares.push({ color: guestColor(g.id), side: g.side ?? "ambos", name: g.name });
-                    for (const x of tExt)
-                      for (let s = 0; s < x.seats; s++) miniSquares.push({ color: extraColor(x.id), side: "extra", name: `📋 ${x.name}` });
+                    const miniSquares = squaresAt(t.id);
+                    const dropActive = planMode === "persona" && dragAtt !== null;
                     return (
                       <div
                         key={t.id}
@@ -597,9 +788,17 @@ export default function MesasPlanPage() {
                         onPointerMove={(e) => moveDrag(e, t.id)}
                         onPointerUp={() => endDrag(t.id)}
                         onPointerCancel={() => endDrag(t.id)}
+                        onDragOver={(e) => { if (dropActive) e.preventDefault(); }}
+                        onDrop={(e) => {
+                          if (planMode !== "persona") return;
+                          e.preventDefault();
+                          const id = Number(e.dataTransfer.getData("text/plain"));
+                          if (id) assignAttendee(id, t.id);
+                          setDragAtt(null);
+                        }}
                         style={{ left: `${p.x}%`, top: `${p.y}%` }}
                         className={`absolute group/mesa -translate-x-1/2 -translate-y-1/2 w-[88px] p-1.5 rounded-lg border-2 bg-white shadow-sm cursor-grab active:cursor-grabbing touch-none ${
-                          draggingId === t.id ? "border-purple-400 shadow-lg z-10" : "border-gray-300"
+                          draggingId === t.id ? "border-purple-400 shadow-lg z-10" : dropActive ? "border-purple-300 ring-2 ring-purple-100" : "border-gray-300"
                         }`}
                       >
                         <button
@@ -615,16 +814,26 @@ export default function MesasPlanPage() {
                           {used} {used === 1 ? "lugar" : "lugares"}
                         </p>
                         <div className="flex flex-wrap gap-[2px] justify-center">
-                          {miniSquares.map((sq, i) => (
-                            <span key={i} className="relative group inline-flex">
-                              <SeatShape side={sq.side} color={sq.color} size={7} />
-                              {draggingId === null && (
-                                <span className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-0.5 rounded-md bg-gray-900 text-white text-[10px] whitespace-nowrap z-20 pointer-events-none shadow-lg">
-                                  {sq.name}
-                                </span>
-                              )}
-                            </span>
-                          ))}
+                          {miniSquares.map((sq, i) => {
+                            const canDrag = planMode === "persona" && sq.kind === "att";
+                            return (
+                              <span
+                                key={i}
+                                className={`relative group inline-flex ${canDrag ? "cursor-grab active:cursor-grabbing" : ""}`}
+                                draggable={canDrag}
+                                onPointerDown={canDrag ? (e) => e.stopPropagation() : undefined}
+                                onDragStart={canDrag ? (e) => { e.stopPropagation(); e.dataTransfer.setData("text/plain", String(sq.id)); setDragAtt(sq.id); } : undefined}
+                                onDragEnd={canDrag ? () => setDragAtt(null) : undefined}
+                              >
+                                <SeatShape side={sq.side} color={sq.color} size={7} />
+                                {draggingId === null && dragAtt === null && (
+                                  <span className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-0.5 rounded-md bg-gray-900 text-white text-[10px] whitespace-nowrap z-20 pointer-events-none shadow-lg">
+                                    {sq.name}
+                                  </span>
+                                )}
+                              </span>
+                            );
+                          })}
                         </div>
                       </div>
                     );
@@ -641,20 +850,25 @@ export default function MesasPlanPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                 {tables.map((t) => {
                   const families = guestsAt(t.id);
+                  const people = attendeesAt(t.id);
                   const tableExtras = extrasAt(t.id);
                   const used = seatsUsed(t.id);
-                  /* una figura por lugar ocupado: color por familia, forma por lado */
-                  const squares: { color: string; name: string; side: SeatSide }[] = [];
-                  for (const g of families)
-                    for (let s = 0; s < g.seats; s++)
-                      squares.push({ color: guestColor(g.id), name: g.name, side: g.side ?? "ambos" });
-                  for (const x of tableExtras)
-                    for (let s = 0; s < x.seats; s++)
-                      squares.push({ color: extraColor(x.id), name: `📋 ${x.name}`, side: "extra" });
+                  const squares = squaresAt(t.id);
+                  const dropActive = planMode === "persona" && dragAtt !== null;
                   return (
                     <div
                       key={t.id}
-                      className="rounded-xl border border-gray-200 bg-white p-4 transition-colors"
+                      onDragOver={(e) => { if (dropActive) e.preventDefault(); }}
+                      onDrop={(e) => {
+                        if (planMode !== "persona") return;
+                        e.preventDefault();
+                        const id = Number(e.dataTransfer.getData("text/plain"));
+                        if (id) assignAttendee(id, t.id);
+                        setDragAtt(null);
+                      }}
+                      className={`rounded-xl border bg-white p-4 transition-colors ${
+                        dropActive ? "border-purple-300 ring-2 ring-purple-100" : "border-gray-200"
+                      }`}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <input
@@ -671,29 +885,74 @@ export default function MesasPlanPage() {
                         </span>
                       </div>
 
-                      {/* gráfico: una figura por lugar ocupado (forma = lado, color = familia) */}
+                      {/* gráfico: una figura por lugar ocupado (forma = lado, color = familia).
+                          En modo persona las figuras de personas se pueden arrastrar. */}
                       {squares.length > 0 && (
                         <div className="flex flex-wrap gap-1 mb-3">
-                          {squares.map((sq, i) => (
-                            <span key={i} className="relative group inline-flex">
-                              <SeatShape side={sq.side} color={sq.color} size={20} />
-                              <span className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-0.5 rounded-md bg-gray-900 text-white text-[10px] whitespace-nowrap z-10 pointer-events-none shadow-lg">
-                                {sq.name}
+                          {squares.map((sq, i) => {
+                            const canDrag = planMode === "persona" && sq.kind === "att";
+                            return (
+                              <span
+                                key={i}
+                                className={`relative group inline-flex ${canDrag ? "cursor-grab active:cursor-grabbing" : ""}`}
+                                draggable={canDrag}
+                                onDragStart={canDrag ? (e) => { e.dataTransfer.setData("text/plain", String(sq.id)); setDragAtt(sq.id); } : undefined}
+                                onDragEnd={canDrag ? () => setDragAtt(null) : undefined}
+                              >
+                                <SeatShape side={sq.side} color={sq.color} size={20} />
+                                {dragAtt === null && (
+                                  <span className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-0.5 rounded-md bg-gray-900 text-white text-[10px] whitespace-nowrap z-10 pointer-events-none shadow-lg">
+                                    {sq.name}
+                                  </span>
+                                )}
                               </span>
-                            </span>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
 
-                      {/* familias en la mesa */}
+                      {/* ocupantes de la mesa (personas o familias, según el modo) */}
                       <div className="space-y-1 min-h-[24px]">
-                        {families.map((g) => (
-                          <div key={g.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white border border-gray-100">
-                            <SeatShape side={g.side ?? "ambos"} color={guestColor(g.id)} size={10} />
-                            <span className="text-sm text-gray-800 break-words min-w-0 flex-1">{g.name} <span className="text-[10px] text-gray-400">({g.seats})</span></span>
-                            <button onClick={() => assign(g.id, null)} title="Quitar de la mesa" className="ml-auto text-gray-300 hover:text-red-500 transition-colors text-xs">✕</button>
-                          </div>
-                        ))}
+                        {planMode === "persona"
+                          ? people.map((a) => {
+                              const g = guestOf(a.guest_id);
+                              return (
+                                <div
+                                  key={a.id}
+                                  draggable
+                                  onDragStart={(e) => { e.dataTransfer.setData("text/plain", String(a.id)); setDragAtt(a.id); }}
+                                  onDragEnd={() => setDragAtt(null)}
+                                  className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white border border-gray-100 cursor-grab active:cursor-grabbing ${dragAtt === a.id ? "opacity-40" : ""}`}
+                                >
+                                  <SeatShape side={g?.side ?? "ambos"} color={guestColor(a.guest_id)} size={10} />
+                                  <div className="min-w-0 flex-1">
+                                    <span className="text-sm text-gray-800 break-words">{a.name}</span>
+                                    <p className="text-[10px] text-gray-400 truncate">{g?.name ?? "—"}</p>
+                                  </div>
+                                  <button onClick={() => assignAttendee(a.id, null)} title="Quitar de la mesa" className="ml-auto text-gray-300 hover:text-red-500 transition-colors text-xs shrink-0">✕</button>
+                                </div>
+                              );
+                            })
+                          : families.map((g) => {
+                              const regs = namesOf(g.id);
+                              return (
+                                <div key={g.id} className="flex items-start gap-2 px-2.5 py-1.5 rounded-lg bg-white border border-gray-100">
+                                  <SeatShape side={g.side ?? "ambos"} color={guestColor(g.id)} size={10} />
+                                  <div className="min-w-0 flex-1">
+                                    <span className="text-sm text-gray-800 break-words">{g.name} <span className="text-[10px] text-gray-400">({g.seats})</span></span>
+                                    {regs.length > 0 && (
+                                      <p className="text-[11px] text-gray-500 break-words leading-snug">
+                                        {regs.join(", ")}
+                                        {regs.length < g.seats && (
+                                          <span className="text-gray-300"> · +{g.seats - regs.length} sin nombre</span>
+                                        )}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <button onClick={() => assign(g.id, null)} title="Quitar de la mesa" className="ml-auto text-gray-300 hover:text-red-500 transition-colors text-xs shrink-0">✕</button>
+                                </div>
+                              );
+                            })}
                         {tableExtras.map((x) => (
                           <div key={`x-${x.id}`} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-gray-50/60 border border-dashed border-gray-200">
                             <SeatShape side="extra" color={extraColor(x.id)} size={10} />
@@ -701,9 +960,9 @@ export default function MesasPlanPage() {
                             <button onClick={() => assignExtra(x.id, null)} title="Quitar de la mesa" className="ml-auto text-gray-300 hover:text-red-500 transition-colors text-xs">✕</button>
                           </div>
                         ))}
-                        {families.length === 0 && tableExtras.length === 0 && (
+                        {(planMode === "persona" ? people.length === 0 : families.length === 0) && tableExtras.length === 0 && (
                           <p className="text-xs text-gray-300 text-center py-2 border border-dashed border-gray-200 rounded-lg">
-                            Etiqueta familias desde la lista ←
+                            {planMode === "persona" ? "Arrastra personas aquí o usa la lista ←" : "Etiqueta familias desde la lista ←"}
                           </p>
                         )}
                       </div>
