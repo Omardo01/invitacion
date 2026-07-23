@@ -62,4 +62,17 @@ await sql`CREATE TABLE IF NOT EXISTS mock_attendee_seating (
   created_at     TEXT NOT NULL DEFAULT (now()::text)
 )`;
 
-console.log("✓ Esquema listo (mock_tables, mock_seating, mock_guests, mock_attendee_seating, pos_x/pos_y, plan_structures)");
+/* Posición de cada mesa en el plano de la VISTA DE ASIENTOS (recinto propio),
+   independiente del plano de Plan de mesas (pos_x/pos_y). NULL = sin acomodar. */
+await sql`ALTER TABLE mock_tables ADD COLUMN IF NOT EXISTS seat_pos_x REAL`;
+await sql`ALTER TABLE mock_tables ADD COLUMN IF NOT EXISTS seat_pos_y REAL`;
+
+/* Silla exacta dentro de la mesa (0..capacity-1) para la vista de asientos.
+   NULL = asignado a la mesa pero aún sin silla. Un índice único parcial evita
+   dos personas en la misma silla de la misma mesa. */
+await sql`ALTER TABLE mock_attendee_seating ADD COLUMN IF NOT EXISTS seat_index INTEGER`;
+await sql`CREATE UNIQUE INDEX IF NOT EXISTS mock_attendee_seat_uidx
+  ON mock_attendee_seating (mock_table_id, seat_index)
+  WHERE seat_index IS NOT NULL`;
+
+console.log("✓ Esquema listo (mock_tables, mock_seating, mock_guests, mock_attendee_seating+seat_index, pos_x/pos_y, plan_structures)");

@@ -7,9 +7,12 @@ export type MockTable = {
   id: number;
   name: string;
   capacity: number;
-  /* posición en el plano del salón (% del lienzo); null = sin acomodar */
+  /* posición en el plano de Plan de mesas (% del lienzo); null = sin acomodar */
   pos_x: number | null;
   pos_y: number | null;
+  /* posición en el plano de la Vista de asientos (recinto propio, independiente) */
+  seat_pos_x: number | null;
+  seat_pos_y: number | null;
   created_at: string;
 };
 
@@ -19,10 +22,12 @@ export type MockSeat = {
 };
 
 /* Acomodo por persona en el plan (sandbox): en qué mesa ficticia está sentado
-   cada asistente registrado. Copia editable, no toca el acomodo real. */
+   cada asistente registrado, y en qué silla exacta (seat_index, 0..capacity-1;
+   null = en la mesa pero aún sin silla). Copia editable, no toca el acomodo real. */
 export type MockAttendeeSeat = {
   attendee_id: number;
   mock_table_id: number;
+  seat_index: number | null;
 };
 
 /* Invitado de logística: existe solo en el plan (staff, proveedores, cortesías),
@@ -58,7 +63,14 @@ export async function createMockTable(data: { name?: string; capacity?: number }
 
 export async function updateMockTable(
   id: number,
-  data: { name?: string; capacity?: number; pos_x?: number | null; pos_y?: number | null },
+  data: {
+    name?: string;
+    capacity?: number;
+    pos_x?: number | null;
+    pos_y?: number | null;
+    seat_pos_x?: number | null;
+    seat_pos_y?: number | null;
+  },
 ): Promise<MockTable> {
   const sql = db();
   const fields: string[] = [];
@@ -68,6 +80,8 @@ export async function updateMockTable(
   if (data.capacity !== undefined) { fields.push(`capacity = $${i++}`); values.push(data.capacity); }
   if (data.pos_x !== undefined) { fields.push(`pos_x = $${i++}`); values.push(data.pos_x); }
   if (data.pos_y !== undefined) { fields.push(`pos_y = $${i++}`); values.push(data.pos_y); }
+  if (data.seat_pos_x !== undefined) { fields.push(`seat_pos_x = $${i++}`); values.push(data.seat_pos_x); }
+  if (data.seat_pos_y !== undefined) { fields.push(`seat_pos_y = $${i++}`); values.push(data.seat_pos_y); }
   values.push(id);
   const rows = (await sql.query(
     `UPDATE mock_tables SET ${fields.join(", ")} WHERE id = $${i} RETURNING *`,
@@ -141,11 +155,13 @@ export async function assignGuestToMockTable(
 export async function getMockAttendeeSeating(): Promise<MockAttendeeSeat[]> {
   const sql = db();
   return (await sql`
-    SELECT attendee_id, mock_table_id FROM mock_attendee_seating
+    SELECT attendee_id, mock_table_id, seat_index FROM mock_attendee_seating
   `) as MockAttendeeSeat[];
 }
 
-/* Sienta (o levanta con null) a una persona en una mesa ficticia del plan. */
+/* Sienta (o levanta con null) a una persona en una mesa ficticia del plan.
+   Es la herramienta "gruesa" (nivel mesa): al mover de mesa se olvida la silla
+   exacta (seat_index vuelve a NULL); la vista de asientos la vuelve a fijar. */
 export async function assignAttendeeToMockTable(
   attendeeId: number,
   mockTableId: number | null,
@@ -155,11 +171,38 @@ export async function assignAttendeeToMockTable(
     await sql`DELETE FROM mock_attendee_seating WHERE attendee_id = ${attendeeId}`;
   } else {
     await sql`
-      INSERT INTO mock_attendee_seating (attendee_id, mock_table_id)
-      VALUES (${attendeeId}, ${mockTableId})
-      ON CONFLICT (attendee_id) DO UPDATE SET mock_table_id = EXCLUDED.mock_table_id
+      INSERT INTO mock_attendee_seating (attendee_id, mock_table_id, seat_index)
+      VALUES (${attendeeId}, ${mockTableId}, NULL)
+      ON CONFLICT (attendee_id) DO UPDATE SET mock_table_id = EXCLUDED.mock_table_id, seat_index = NULL
     `;
   }
+}
+
+/* Sienta a una persona en una silla exacta (mesa + seat_index). Antes libera esa
+   silla si estaba ocupada por alguien más (queda en la mesa, sin silla). */
+export async function assignAttendeeToSeat(
+  attendeeId: number,
+  mockTableId: number,
+  seatIndex: number,
+): Promise<void> {
+  const sql = db();
+  await sql`
+    UPDATE mock_attendee_seating SET seat_index = NULL
+    WHERE mock_table_id = ${mockTableId} AND seat_index = ${seatIndex} AND attendee_id <> ${attendeeId}
+  `;
+  await sql`
+    INSERT INTO mock_attendee_seating (attendee_id, mock_table_id, seat_index)
+    VALUES (${attendeeId}, ${mockTableId}, ${seatIndex})
+    ON CONFLICT (attendee_id) DO UPDATE SET mock_table_id = EXCLUDED.mock_table_id, seat_index = EXCLUDED.seat_index
+  `;
+}
+
+/* Levanta a una persona de su silla pero la deja asignada a su mesa. */
+export async function clearAttendeeSeat(attendeeId: number): Promise<void> {
+  const sql = db();
+  await sql`
+    UPDATE mock_attendee_seating SET seat_index = NULL WHERE attendee_id = ${attendeeId}
+  `;
 }
 
 /* Copia el acomodo real (tables/attendees) al sandbox por persona del plan.

@@ -932,6 +932,12 @@ export default function MerchAdminPage() {
             >
               Plan de mesas
             </Link>
+            <Link
+              href="/admin/asientos"
+              className="text-sm px-3 py-1.5 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              Asientos
+            </Link>
             <span className="text-sm px-3 py-1.5 rounded-lg font-medium bg-gray-900 text-white">
               Merch
             </span>

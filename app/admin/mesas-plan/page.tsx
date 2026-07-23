@@ -143,7 +143,7 @@ export default function MesasPlanPage() {
   const assignAttendee = async (attendeeId: number, tableId: number | null) => {
     setAttendeeSeating((prev) => {
       const rest = prev.filter((s) => s.attendee_id !== attendeeId);
-      return tableId === null ? rest : [...rest, { attendee_id: attendeeId, mock_table_id: tableId }];
+      return tableId === null ? rest : [...rest, { attendee_id: attendeeId, mock_table_id: tableId, seat_index: null }];
     });
     await fetch("/api/mock-tables/assign-attendee", {
       method: "PUT",
@@ -417,6 +417,9 @@ export default function MesasPlanPage() {
               Mesas
             </Link>
             <span className="text-sm px-3 py-1.5 rounded-lg font-medium bg-gray-900 text-white">Plan de mesas</span>
+            <Link href="/admin/asientos" className="text-sm px-3 py-1.5 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-colors">
+              Asientos
+            </Link>
             <Link href="/admin/merch" className="text-sm px-3 py-1.5 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-colors">
               Merch
             </Link>
