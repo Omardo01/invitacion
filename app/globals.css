@@ -50,3 +50,63 @@ body {
     transform: translate(-50%, -50%) rotate(360deg);
   }
 }
+
+/* ─────────────────────────────────────────────────────────────
+   Impresión · hojas del panel (lista de mesas, entrega de merch)
+   El overlay se monta como hijo directo de <body> (portal), con la
+   clase .print-portal; la hoja va en .print-area. Al imprimir se
+   oculta toda la app y queda solo la hoja.
+   ───────────────────────────────────────────────────────────── */
+
+/* Bloques que no deben partirse entre páginas (una mesa, un grupo). */
+.print-break {
+  break-inside: avoid;
+}
+
+/* En pantalla la hoja se ve como una hoja de papel centrada. */
+@media screen {
+  .print-area {
+    max-width: 820px;
+    margin: 24px auto 48px;
+    padding: 40px 44px;
+    background: #fff;
+    border-radius: 4px;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+  }
+}
+
+@page {
+  size: A4;
+  margin: 14mm;
+}
+
+@media print {
+  /* Oculta la app entera; deja solo el portal de impresión. */
+  body > *:not(.print-portal) {
+    display: none !important;
+  }
+  .print-portal {
+    position: static !important;
+    overflow: visible !important;
+    background: #fff !important;
+    z-index: auto !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-area {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  /* Respeta colores/acentos (barras grises de encabezado, chips) al imprimir. */
+  .print-portal,
+  .print-area,
+  .print-area * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

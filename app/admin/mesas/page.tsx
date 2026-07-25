@@ -5,6 +5,8 @@ import { useEffect, useState, useCallback } from "react";
 import type { Guest } from "@/lib/guests";
 import type { Attendee } from "@/lib/attendees";
 import type { TableRow } from "@/lib/tables";
+import PrintOverlay from "../_components/PrintOverlay";
+import MesasPrintSheet from "../_components/MesasPrintSheet";
 
 /* paleta lila para distinguir familias */
 const FAMILY_COLORS = [
@@ -19,6 +21,7 @@ export default function MesasPage() {
   const [loading, setLoading] = useState(true);
   const [dragId, setDragId] = useState<number | null>(null);
   const [overTable, setOverTable] = useState<number | "unassigned" | null>(null);
+  const [showPrint, setShowPrint] = useState(false);
 
   const fetchAll = useCallback(async () => {
     const [tRes, aRes, gRes] = await Promise.all([
@@ -107,12 +110,21 @@ export default function MesasPage() {
             </Link>
           </nav>
         </div>
-        <button
-          onClick={addTable}
-          className="text-sm px-4 py-1.5 rounded-lg bg-gray-900 text-white hover:bg-gray-700 transition-colors font-medium"
-        >
-          + Agregar mesa
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowPrint(true)}
+            title="Imprimir la lista de invitados por mesa"
+            className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            🖨️ Imprimir mesas
+          </button>
+          <button
+            onClick={addTable}
+            className="text-sm px-4 py-1.5 rounded-lg bg-gray-900 text-white hover:bg-gray-700 transition-colors font-medium"
+          >
+            + Agregar mesa
+          </button>
+        </div>
       </header>
 
       {loading ? (
@@ -234,6 +246,12 @@ export default function MesasPage() {
             )}
           </section>
         </main>
+      )}
+
+      {showPrint && (
+        <PrintOverlay label="Acomodo de mesas" onClose={() => setShowPrint(false)}>
+          <MesasPrintSheet tables={tables} attendees={attendees} guests={guests} />
+        </PrintOverlay>
       )}
     </div>
   );

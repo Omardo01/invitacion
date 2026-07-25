@@ -2,9 +2,12 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import PrintOverlay from "../_components/PrintOverlay";
+import MerchPrintSheet from "../_components/MerchPrintSheet";
 import type { MerchItem, MerchRecipient } from "@/lib/merch";
 import type { Guest } from "@/lib/guests";
 import type { Attendee } from "@/lib/attendees";
+import type { TableRow } from "@/lib/tables";
 
 type DeliveredFilter = "todos" | "pendientes" | "entregados";
 type ViewMode = "grupos" | "individual";
@@ -776,6 +779,7 @@ export default function MerchAdminPage() {
   const [recipients, setRecipients] = useState<MerchRecipient[]>([]);
   const [guests, setGuests] = useState<Guest[]>([]);
   const [attendees, setAttendees] = useState<Attendee[]>([]);
+  const [tables, setTables] = useState<TableRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<DeliveredFilter>("todos");
@@ -786,20 +790,24 @@ export default function MerchAdminPage() {
   const [addToGroup, setAddToGroup] = useState<{ group: string; guestId: number | null } | null>(null);
   const [editPerson, setEditPerson] = useState<MerchRecipient | null>(null);
   const [packageRecipient, setPackageRecipient] = useState<MerchRecipient | null>(null);
+  const [showPrint, setShowPrint] = useState(false);
 
   const fetchData = useCallback(async () => {
-    const [mRes, gRes, aRes] = await Promise.all([
+    const [mRes, gRes, aRes, tRes] = await Promise.all([
       fetch("/api/merch"),
       fetch("/api/guests"),
       fetch("/api/attendees"),
+      fetch("/api/tables"),
     ]);
     const mData = await mRes.json();
     const gData = await gRes.json();
     const aData = await aRes.json();
+    const tData = await tRes.json();
     setItems(mData.items ?? []);
     setRecipients(mData.recipients ?? []);
     setGuests(gData.guests ?? []);
     setAttendees(aData.attendees ?? []);
+    setTables(tData.tables ?? []);
     setLoading(false);
   }, []);
 
@@ -944,6 +952,13 @@ export default function MerchAdminPage() {
           </nav>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => setShowPrint(true)}
+            title="Imprimir la hoja de entrega de merch"
+            className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            🖨️ Imprimir entrega
+          </button>
           <button
             onClick={() => { setEditItem(null); setShowItemModal(true); }}
             className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
@@ -1319,6 +1334,17 @@ export default function MerchAdminPage() {
           onClose={() => setPackageRecipient(null)}
           onChanged={fetchData}
         />
+      )}
+
+      {showPrint && (
+        <PrintOverlay label="Entrega de merch" onClose={() => setShowPrint(false)}>
+          <MerchPrintSheet
+            recipients={recipients}
+            items={items}
+            tables={tables}
+            attendees={attendees}
+          />
+        </PrintOverlay>
       )}
     </div>
   );
