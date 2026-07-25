@@ -10,6 +10,11 @@ const SIN_GRUPO = "Sin grupo";
 const SIN_MESA = "Sin mesa asignada";
 const groupOf = (r: MerchRecipient) => r.group_name?.trim() || SIN_GRUPO;
 const norm = (s: string) => s.trim().toLowerCase();
+// Número de mesa a partir del nombre ("Mesa 10 · Familia" → 10); sin número → al final.
+const tableNumber = (name: string) => {
+  const m = name.match(/\d+/);
+  return m ? parseInt(m[0], 10) : Number.MAX_SAFE_INTEGER;
+};
 
 type Mode = "grupos" | "mesas";
 
@@ -53,8 +58,9 @@ export default function MerchPrintSheet({
       tableId = fam?.table_id ?? null;
     }
     if (tableId == null) return { key: SIN_MESA, order: Number.MAX_SAFE_INTEGER };
-    const idx = tables.findIndex((t) => t.id === tableId);
-    return { key: tables[idx]?.name ?? SIN_MESA, order: idx < 0 ? Number.MAX_SAFE_INTEGER : idx };
+    const name = tables.find((t) => t.id === tableId)?.name;
+    // Ordena por el número de mesa del nombre (no por orden de creación / id).
+    return name ? { key: name, order: tableNumber(name) } : { key: SIN_MESA, order: Number.MAX_SAFE_INTEGER };
   };
 
   // Agrupa según el modo, conservando un orden estable.
@@ -80,7 +86,7 @@ export default function MerchPrintSheet({
       index.get(key)!.list.push(r);
     }
     return [...index.entries()]
-      .sort((a, b) => a[1].order - b[1].order)
+      .sort((a, b) => a[1].order - b[1].order || a[0].localeCompare(b[0]))
       .map(([k, v]) => [k, v.list] as [string, MerchRecipient[]]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recipients, mode, attendees, tables]);

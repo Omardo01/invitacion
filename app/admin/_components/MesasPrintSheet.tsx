@@ -23,6 +23,17 @@ export default function MesasPrintSheet({
   const unassigned = attendees.filter((a) => a.table_id === null).sort((a, b) => a.id - b.id);
   const totalSeated = attendees.filter((a) => a.table_id !== null).length;
 
+  // Ordena por el número de mesa que aparece en el nombre (no por orden de
+  // creación): al renumerar mesas, el id ya no coincide con el número visible.
+  // Las mesas sin número van al final, ordenadas por nombre.
+  const tableNumber = (name: string) => {
+    const m = name.match(/\d+/);
+    return m ? parseInt(m[0], 10) : Number.MAX_SAFE_INTEGER;
+  };
+  const sortedTables = [...tables].sort(
+    (a, b) => tableNumber(a.name) - tableNumber(b.name) || a.name.localeCompare(b.name),
+  );
+
   const rows = (list: Attendee[]) => (
     <ul>
       {list.map((a, i) => {
@@ -64,7 +75,7 @@ export default function MesasPrintSheet({
         <p className="text-center text-sm text-gray-400 py-10">Aún no hay mesas.</p>
       ) : (
         <div className="grid grid-cols-2 gap-x-8 gap-y-6">
-          {tables.map((t) => {
+          {sortedTables.map((t) => {
             const seated = seatedAt(t.id);
             return (
               <section key={t.id} className="print-break border border-gray-300 rounded-md overflow-hidden">
